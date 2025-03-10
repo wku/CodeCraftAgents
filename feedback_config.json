@@ -1,0 +1,24 @@
+{
+  "max_iterations": 3,
+  "confidence_threshold": 0.7,
+  "retry_delay": 2,
+  "fallback_agent": "decomposer",
+  "agent_specific": {
+    "decomposer": {
+      "max_iterations": 5,
+      "confidence_threshold": 0.8
+    },
+    "validator": {
+      "max_iterations": 4,
+      "confidence_threshold": 0.75
+    },
+    "codegen": {
+      "max_iterations": 3,
+      "confidence_threshold": 0.85
+    },
+    "docker": {
+      "max_iterations": 2,
+      "confidence_threshold": 0.9
+    }
+  }
+}

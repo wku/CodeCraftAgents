@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400">
+  <!-- Background with subtle grid pattern -->
+  <defs>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f0f0f0" stroke-width="1"/>
+    </pattern>
+    
+    <!-- Gradient for the text -->
+    <linearGradient id="textGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4a6baf;" />
+      <stop offset="100%" style="stop-color:#9c27b0;" />
+    </linearGradient>
+    
+    <!-- Gradient for agents -->
+    <linearGradient id="agentGradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3f51b5;" />
+      <stop offset="100%" style="stop-color:#2196f3;" />
+    </linearGradient>
+    
+    <linearGradient id="agentGradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9c27b0;" />
+      <stop offset="100%" style="stop-color:#e91e63;" />
+    </linearGradient>
+    
+    <linearGradient id="agentGradient3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00bcd4;" />
+      <stop offset="100%" style="stop-color:#4caf50;" />
+    </linearGradient>
+    
+    <linearGradient id="agentGradient4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffc107;" />
+      <stop offset="100%" style="stop-color:#ff5722;" />
+    </linearGradient>
+    
+    <!-- Hexagon pattern for code structure -->
+    <pattern id="hexPattern" patternUnits="userSpaceOnUse" width="60" height="60">
+      <path d="M30 10L55 30L45 52.5H15L5 30L30 10Z" fill="none" stroke="#e0e0e0" stroke-width="1"/>
+    </pattern>
+  </defs>
+  
+  <!-- Background with grid and hex pattern -->
+  <rect width="800" height="400" fill="#f9f9f9" />
+  <rect width="800" height="400" fill="url(#grid)" />
+  <rect width="800" height="400" fill="url(#hexPattern)" opacity="0.3" />
+  
+  <!-- Circular central hub connecting the agents -->
+  <circle cx="400" cy="200" r="50" fill="#ffffff" stroke="#4a6baf" stroke-width="3" />
+  <circle cx="400" cy="200" r="42" fill="none" stroke="#9c27b0" stroke-width="1" stroke-dasharray="5,3" />
+  
+  <!-- Code brackets inside the central hub -->
+  <text x="385" y="215" font-family="'Courier New', monospace" font-size="40" font-weight="bold" fill="url(#textGradient)">{}</text>
+  
+  <!-- Connecting lines from center to agents -->
+  <line x1="400" y1="200" x2="250" y2="120" stroke="#3f51b5" stroke-width="2" />
+  <line x1="400" y1="200" x2="550" y2="120" stroke="#9c27b0" stroke-width="2" />
+  <line x1="400" y1="200" x2="250" y2="280" stroke="#00bcd4" stroke-width="2" />
+  <line x1="400" y1="200" x2="550" y2="280" stroke="#ffc107" stroke-width="2" />
+  
+  <!-- Pulsating animation for data flow -->
+  <circle cx="325" cy="160" r="5" fill="#3f51b5">
+    <animate attributeName="opacity" values="1;0.3;1" dur="2s" repeatCount="indefinite" />
+    <animate attributeName="r" values="2;5;2" dur="2s" repeatCount="indefinite" />
+  </circle>
+  
+  <circle cx="475" cy="160" r="5" fill="#9c27b0">
+    <animate attributeName="opacity" values="0.3;1;0.3" dur="2.5s" repeatCount="indefinite" />
+    <animate attributeName="r" values="5;2;5" dur="2.5s" repeatCount="indefinite" />
+  </circle>
+  
+  <circle cx="325" cy="240" r="5" fill="#00bcd4">
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="3s" repeatCount="indefinite" />
+    <animate attributeName="r" values="3;6;3" dur="3s" repeatCount="indefinite" />
+  </circle>
+  
+  <circle cx="475" cy="240" r="5" fill="#ffc107">
+    <animate attributeName="opacity" values="1;0.4;1" dur="2.2s" repeatCount="indefinite" />
+    <animate attributeName="r" values="4;2;4" dur="2.2s" repeatCount="indefinite" />
+  </circle>
+  
+  <!-- Agent nodes -->
+  <!-- Agent 1: Task Decomposer -->
+  <circle cx="250" cy="120" r="40" fill="url(#agentGradient1)" />
+  <text x="250" y="125" font-family="Arial, sans-serif" font-size="11" fill="white" text-anchor="middle">Decomposer</text>
+  
+  <!-- Agent 2: Code Generator -->
+  <circle cx="550" cy="120" r="40" fill="url(#agentGradient2)" />
+  <text x="550" y="125" font-family="Arial, sans-serif" font-size="11" fill="white" text-anchor="middle">Generator</text>
+  
+  <!-- Agent 3: Validator -->
+  <circle cx="250" cy="280" r="40" fill="url(#agentGradient3)" />
+  <text x="250" y="285" font-family="Arial, sans-serif" font-size="11" fill="white" text-anchor="middle">Validator</text>
+  
+  <!-- Agent 4: Docker Builder -->
+  <circle cx="550" cy="280" r="40" fill="url(#agentGradient4)" />
+  <text x="550" y="285" font-family="Arial, sans-serif" font-size="11" fill="white" text-anchor="middle">Docker</text>
+  
+  <!-- Code symbols inside agents -->
+  <text x="250" y="115" font-family="'Courier New', monospace" font-size="16" fill="white" text-anchor="middle">{ }</text>
+  <text x="550" y="115" font-family="'Courier New', monospace" font-size="16" fill="white" text-anchor="middle">&lt;/&gt;</text>
+  <text x="250" y="275" font-family="'Courier New', monospace" font-size="16" fill="white" text-anchor="middle">✓</text>
+  <text x="550" y="275" font-family="'Courier New', monospace" font-size="16" fill="white" text-anchor="middle">🐳</text>
+  
+  <!-- Title -->
+  <text x="400" y="50" font-family="Arial, sans-serif" font-size="36" font-weight="bold" fill="url(#textGradient)" text-anchor="middle">CodeCraft Agents</text>
+  <text x="400" y="80" font-family="Arial, sans-serif" font-size="16" fill="#666" text-anchor="middle">Multi-Agent AI Code Generation System</text>
+  
+  <!-- Tagline at bottom -->
+  <text x="400" y="350" font-family="Arial, sans-serif" font-size="14" fill="#666" text-anchor="middle">From Natural Language to Production-Ready Code</text>
+  
+  <!-- Decorative code paths -->
+  <path d="M150 200 C 200 100, 600 100, 650 200" fill="none" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="5,5" />
+  <path d="M150 200 C 200 300, 600 300, 650 200" fill="none" stroke="#e0e0e0" stroke-width="1" stroke-dasharray="5,5" />
+</svg>
