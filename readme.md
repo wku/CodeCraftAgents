@@ -136,9 +136,6 @@ For more detailed information on the system's architecture and components, see:
 - [Verification System](docs/verification.md)
 - [Feedback Loop Mechanism](docs/feedback-loop.md)
 
-## 🌐 Other Languages
-
-- [README in Ukrainian](README.uk.md)
 
 ## 📈 Future Roadmap
 
