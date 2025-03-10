@@ -8,6 +8,8 @@ from openai import OpenAI
 from qdrant_client import QdrantClient
 from qdrant_client.models import VectorParams, Distance, PointStruct
 from sentence_transformers import SentenceTransformer
+from dotenv import load_dotenv
+load_dotenv()
 
 # Настройка логирования
 logging.basicConfig(
