@@ -21,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Конфигурация
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "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")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 QDRANT_HOST = "localhost"
 QDRANT_PORT = 6333
 COLLECTION_NAME = "multi_agent_system"
