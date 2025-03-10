@@ -6,50 +6,27 @@ from typing import Dict, Any, Optional, List
 from verification import VerificationAgent
 from utils import logger, load_json, save_json
 from agents import initialize_agents  # Предполагается, что agents.py обновлен
+from utils import logger, load_json, save_json, load_yaml
+
+
 
 class FeedbackLoop:
-    def __init__(self, config_path: str = "project/feedback_config.json", rules_path: str = "project/verification_rules.json"):
+    def __init__(self, config_path: str = "settings.yml", rules_path: str = "settings.yml"):
         """Инициализация цикла обратной связи."""
+
         self.config_path = config_path
         self.rules_path = rules_path
-        self.config = self._load_config()
+        settings = load_yaml(config_path)
+        self.config = settings.get('feedback', {})
+        self.verification_rules = settings.get('verification_rules', {})
         self.verifier = VerificationAgent(rules_path)
+
         self.agents = initialize_agents()
         self.previous_results = {}  # Хранение результатов предыдущих агентов
         
         # Загрузка сохраненных результатов для восстановления контекста
         self._load_previous_results()
 
-    def _load_config(self) -> Dict[str, Any]:
-        """Загрузка конфигурации обратной связи."""
-        if not os.path.exists(self.config_path):
-            # Создание базовой конфигурации, если файл не существует
-            config = {
-                "max_iterations": 3,
-                "confidence_threshold": 0.7,
-                "retry_delay": 2,
-                "fallback_agent": "decomposer",
-                "agent_specific": {
-                    "decomposer": {"max_iterations": 5, "confidence_threshold": 0.8},
-                    "validator": {"max_iterations": 4, "confidence_threshold": 0.75},
-                    "codegen": {"max_iterations": 3, "confidence_threshold": 0.85},
-                    "docker": {"max_iterations": 2, "confidence_threshold": 0.9}
-                }
-            }
-            save_json(config, self.config_path)
-            logger.info(f"Создан файл конфигурации {self.config_path} со значениями по умолчанию")
-            return config
-            
-        config = load_json(self.config_path)
-        if not config:
-            logger.warning(f"Файл конфигурации {self.config_path} пуст или поврежден, используются значения по умолчанию")
-            config = {
-                "max_iterations": 3,
-                "confidence_threshold": 0.7,
-                "retry_delay": 2,
-                "fallback_agent": "decomposer"
-            }
-        return config
 
     def _load_previous_results(self):
         """Загрузка сохраненных результатов из директории project."""

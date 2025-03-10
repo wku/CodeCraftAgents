@@ -2,6 +2,7 @@
 import os
 import json
 import logging
+import yaml
 from typing import Any, List, Optional  # Dict заменён на dict в коде
 from typing import Any, List, Optional
 from openai import OpenAI
@@ -37,6 +38,36 @@ client = OpenAI(
 )
 qdrant_client = QdrantClient(QDRANT_HOST, port=QDRANT_PORT)
 model = SentenceTransformer('all-MiniLM-L6-v2')
+
+
+
+
+
+
+def load_yaml(filepath: str) -> Optional[Any]:
+    """Чтение YAML-файла с обработкой ошибок."""
+    try:
+        if os.path.exists(filepath):
+            with open(filepath, 'r', encoding='utf-8') as f:
+                data = yaml.safe_load(f)
+                logger.debug(f"Загружен YAML из {filepath}")
+                return data
+        logger.warning(f"Файл {filepath} не найден")
+        return None
+    except Exception as e:
+        logger.error(f"Ошибка загрузки YAML из {filepath}: {str(e)}")
+        return None
+
+def save_yaml(data: Any, filepath: str) -> None:
+    """Сохранение данных в YAML-файл с проверкой пути."""
+    try:
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        with open(filepath, 'w', encoding='utf-8') as f:
+            yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
+        logger.info(f"Сохранён YAML в {filepath}")
+    except Exception as e:
+        logger.error(f"Ошибка сохранения YAML в {filepath}: {str(e)}")
+
 
 def call_openrouter(prompt: str, model: str = MODEL) -> str:
     """Вызов OpenRouter API с обработкой ошибок."""

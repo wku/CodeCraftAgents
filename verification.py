@@ -5,136 +5,21 @@ import os
 import ast
 from typing import Dict, Any, List, Optional, Union
 from utils import logger, load_json
+from utils import logger, load_json, save_json, load_yaml  # Добавьте load_yaml
+
 
 class VerificationAgent:
-    def __init__(self, rules_path: str = "project/verification_rules.json"):
+    def __init__(self, rules_path: str = "settings.yml"):
         """Инициализация агента верификации с загрузкой правил."""
         self.rules_path = rules_path
-        self.rules = self._load_verification_rules()
+        self.rules = self._load_verification_rules ()
     
+
     def _load_verification_rules(self) -> Dict[str, Any]:
-        """Загрузка правил верификации из файла с созданием стандартных правил при необходимости."""
-        # Проверка существования файла
-        if not os.path.exists(self.rules_path):
-            # Создаем директорию, если не существует
-            os.makedirs(os.path.dirname(self.rules_path), exist_ok=True)
-            
-            # Стандартные правила верификации
-            default_rules = {
-                "decomposer": {
-                    "required_fields": ["modules"],
-                    "module_fields": ["name", "input", "output", "logic", "external"],
-                    "error_patterns": [r"предположение", r"неизвестно"],
-                    "success_criteria": "all fields present and no assumptions"
-                },
-                "validator": {
-                    "required_fields": ["status"],
-                    "valid_statuses": ["approved", "rejected"],
-                    "success_criteria": "status is approved or rejected with comments"
-                },
-                "consistency": {
-                    "required_fields": ["status"],
-                    "valid_statuses": ["approved", "rejected"],
-                    "success_criteria": "status is approved or rejected with inconsistencies"
-                },
-                "codegen": {
-                    "required_fields": None,
-                    "error_patterns": [r"import\s+error", r"syntax\s+error"],
-                    "success_criteria": "valid Python syntax and dependencies included"
-                },
-                "extractor": {
-                    "required_fields": ["file_path"],
-                    "success_criteria": "file_path exists and contains valid code"
-                },
-                "docker": {
-                    "required_fields": ["dockerfile", "compose"],
-                    "success_criteria": "Dockerfile and docker-compose.yml are valid"
-                },
-                "tester": {
-                    "required_fields": ["tests"],
-                    "success_criteria": "tests are valid pytest code"
-                },
-                "docs": {
-                    "required_fields": None,
-                    "success_criteria": "README.md contains interfaces and usage instructions"
-                },
-                "monitor": {
-                    "required_fields": ["command"],
-                    "valid_commands": ["none", "Перезапустить", "Принудительный переход к consistency"],
-                    "success_criteria": "valid command based on state"
-                },
-                "coordinator": {
-                    "required_fields": None,
-                    "success_criteria": "returns a valid agent name"
-                },
-                "knowledge": {
-                    "required_fields": None,
-                    "success_criteria": "non-empty list of categorized data"
-                }
-            }
-            
-            # Сохраняем стандартные правила
-            with open(self.rules_path, 'w', encoding='utf-8') as f:
-                json.dump(default_rules, f, ensure_ascii=False, indent=2)
-            
-            logger.info(f"Создан файл с правилами верификации {self.rules_path}")
-            return default_rules
-            
-        rules = load_json(self.rules_path)
-        if not rules:
-            logger.warning(f"Файл правил верификации {self.rules_path} пуст или поврежден, используются правила по умолчанию")
-            rules = {
-                "decomposer": {
-                    "required_fields": ["modules"],
-                    "module_fields": ["name", "input", "output", "logic", "external"],
-                    "error_patterns": [r"предположение", r"неизвестно"],
-                    "success_criteria": "all fields present and no assumptions"
-                },
-                "validator": {
-                    "required_fields": ["status"],
-                    "valid_statuses": ["approved", "rejected"],
-                    "success_criteria": "status is approved or rejected with comments"
-                },
-                "consistency": {
-                    "required_fields": ["status"],
-                    "valid_statuses": ["approved", "rejected"],
-                    "success_criteria": "status is approved or rejected with inconsistencies"
-                },
-                "codegen": {
-                    "required_fields": None,
-                    "error_patterns": [r"import\s+error", r"syntax\s+error"],
-                    "success_criteria": "valid Python syntax and dependencies included"
-                },
-                "extractor": {
-                    "required_fields": ["file_path"],
-                    "success_criteria": "file_path exists and contains valid code"
-                },
-                "docker": {
-                    "required_fields": ["dockerfile", "compose"],
-                    "success_criteria": "Dockerfile and docker-compose.yml are valid"
-                },
-                "monitor": {
-                    "required_fields": ["command"],
-                    "valid_commands": ["none", "Перезапустить", "Принудительный переход к consistency"],
-                    "success_criteria": "valid command based on state"
-                },
-                "tester": {
-                    "required_fields": ["tests"],
-                    "success_criteria": "tests are valid pytest code"
-                },
-                "docs": {
-                    "required_fields": None,
-                    "success_criteria": "README.md contains interfaces and usage instructions"
-                },
-                "coordinator": {
-                    "required_fields": None,
-                    "success_criteria": "returns a valid agent name"
-                },
-                "knowledge": {
-                    "required_fields": None,
-                    "success_criteria": "non-empty list of categorized data"
-                }
-            }
+        """Загрузка правил верификации из YAML."""
+        settings = load_yaml(self.rules_path)
+        rules = settings.get('verification_rules', {})
+        
         return rules
 
     def verify(self, agent_name: str, result: Any, task: str, previous_results: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

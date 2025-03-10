@@ -1,69 +1,56 @@
 import pytest
 from aiohttp import web
 from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
-from app import sum_handler
+
 class TestSumHandler(AioHTTPTestCase):
 
     async def get_application(self):
-        app = web.Application()
-        app.router.add_get('/sum', sum_handler)
-        return app
+        return await init_app()
 
-
+    @unittest_run_loop
     async def test_sum_valid_numbers(self):
-        response = await self.client.get('/sum?a=3&b=4')
+        response = await self.client.get('/sum?a=3&b=5')
         assert response.status == 200
         json_response = await response.json()
+        assert json_response['result'] == 8
         assert json_response['status'] == 'success'
-        assert json_response['result'] == 7
 
-
+    @unittest_run_loop
     async def test_sum_missing_parameters(self):
         response = await self.client.get('/sum?a=3')
         assert response.status == 400
         json_response = await response.json()
-        assert json_response['status'] == 'error'
-        assert json_response['message'] == 'Параметры a и b обязательны.'
+        assert json_response['error'] == 'Параметры a и b обязательны.'
 
-
-    async def test_sum_invalid_numbers(self):
-        response = await self.client.get('/sum?a=three&b=four')
+    @unittest_run_loop
+    async def test_sum_non_numeric_parameters(self):
+        response = await self.client.get('/sum?a=three&b=five')
         assert response.status == 400
         json_response = await response.json()
-        assert json_response['status'] == 'error'
-        assert json_response['message'] == 'Параметры a и b должны быть числами (int или float).'
+        assert json_response['error'] == 'Параметры a и b должны быть числами.'
 
-
-    async def test_sum_float_numbers(self):
-        response = await self.client.get('/sum?a=3.5&b=2.5')
-        assert response.status == 200
+    @unittest_run_loop
+    async def test_sum_empty_parameters(self):
+        response = await self.client.get('/sum?a=&b=')
+        assert response.status == 400
         json_response = await response.json()
-        assert json_response['status'] == 'success'
-        assert json_response['result'] == 6.0
+        assert json_response['error'] == 'Параметры a и b обязательны.'
 
-
+    @unittest_run_loop
     async def test_sum_large_numbers(self):
-        response = await self.client.get('/sum?a=1e10&b=1e10')
+        response = await self.client.get('/sum?a=1e+100&b=1e+100')
         assert response.status == 200
         json_response = await response.json()
+        assert json_response['result'] == 2e+100
         assert json_response['status'] == 'success'
-        assert json_response['result'] == 2e10
 
-
+    @unittest_run_loop
     async def test_sum_negative_numbers(self):
-        response = await self.client.get('/sum?a=-3&b=-4')
+        response = await self.client.get('/sum?a=-3&b=-5')
         assert response.status == 200
         json_response = await response.json()
+        assert json_response['result'] == -8
         assert json_response['status'] == 'success'
-        assert json_response['result'] == -7
-
-
-    async def test_sum_zero(self):
-        response = await self.client.get('/sum?a=0&b=0')
-        assert response.status == 200
-        json_response = await response.json()
-        assert json_response['status'] == 'success'
-        assert json_response['result'] == 0
 
 if __name__ == '__main__':
     pytest.main()

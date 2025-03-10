@@ -2,7 +2,12 @@
 
 ![CodeCraft Agents Banner](assets/logo.svg)
 
+
 > Transform natural language task descriptions into fully functional, tested, and dockerized code solutions
+
+## 🌐 Other Languages
+
+- [README in Ukrainian](readme.uk.md)
 
 ## 🚀 Overview
 

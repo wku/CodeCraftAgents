@@ -14,13 +14,12 @@ def initialize_config_files():
     """Инициализация конфигурационных файлов."""
     os.makedirs("project", exist_ok=True)
     
-    # Проверка и копирование feedback_config.json
-    if not os.path.exists("project/feedback_config.json"):
-        if os.path.exists("feedback_config.json"):
-            shutil.copy("feedback_config.json", "project/feedback_config.json")
-            logger.info("Скопирован файл feedback_config.json в директорию project")
-        else:
-            save_json({
+    # Проверка и использование settings.yml
+    settings_path = "settings.yml"
+    if not os.path.exists(settings_path):
+        # Создание файла settings.yml с дефолтными настройками
+        default_settings = {
+            'feedback': {
                 "max_iterations": 3,
                 "confidence_threshold": 0.7,
                 "retry_delay": 2,
@@ -31,16 +30,8 @@ def initialize_config_files():
                     "codegen": {"max_iterations": 3, "confidence_threshold": 0.85},
                     "docker": {"max_iterations": 2, "confidence_threshold": 0.9}
                 }
-            }, "project/feedback_config.json")
-            logger.info("Создан стандартный файл feedback_config.json")
-    
-    # Проверка и копирование verification_rules.json
-    if not os.path.exists("project/verification_rules.json"):
-        if os.path.exists("verification_rules.json"):
-            shutil.copy("verification_rules.json", "project/verification_rules.json")
-            logger.info("Скопирован файл verification_rules.json в директорию project")
-        else:
-            save_json({
+            },
+            'verification_rules': {
                 "decomposer": {
                     "required_fields": ["modules"],
                     "module_fields": ["name", "input", "output", "logic", "external"],
@@ -111,8 +102,11 @@ def initialize_config_files():
                     "success_criteria": "README.md contains interfaces and usage instructions",
                     "priority": 11
                 }
-            }, "project/verification_rules.json")
-            logger.info("Создан стандартный файл verification_rules.json")
+            }
+        }
+        save_yaml(default_settings, settings_path)
+        logger.info(f"Создан файл {settings_path} с настройками по умолчанию")
+
 
 def save_code_safely(code, file_path):
     """Безопасное сохранение кода с проверкой типа данных."""

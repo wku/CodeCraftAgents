@@ -3,24 +3,18 @@
     {
       "name": "api_server",
       "input": {
-        "routes": [
-          {
-            "path": "/sum",
-            "method": "GET",
-            "parameters": {
-              "a": "число (int или float)",
-              "b": "число (int или float)"
-            }
-          }
-        ]
-      },
-      "output": {
-        "response_format": {
-          "result": "число (int или float)",
-          "status": "строка (например, 'success' или 'error')"
+        "parameters": {
+          "a": "число (GET параметр)",
+          "b": "число (GET параметр)"
         }
       },
-      "logic": "Создать aiohttp сервер, который обрабатывает GET запросы на маршрут /sum, извлекает параметры a и b, вычисляет их сумму и возвращает результат в формате JSON.",
+      "output": {
+        "response": {
+          "result": "число (сумма a и b)",
+          "status": "HTTP статус код"
+        }
+      },
+      "logic": "Создать aiohttp сервер, настроить маршрут /sum, обработать GET запросы, извлечь параметры a и b, вычислить их сумму и вернуть результат в формате JSON.",
       "external": [
         "aiohttp"
       ]
