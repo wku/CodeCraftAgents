@@ -1,0 +1,29 @@
+{
+  "modules": [
+    {
+      "name": "api_server",
+      "input": {
+        "routes": [
+          {
+            "path": "/sum",
+            "method": "GET",
+            "parameters": {
+              "a": "число (int или float)",
+              "b": "число (int или float)"
+            }
+          }
+        ]
+      },
+      "output": {
+        "response_format": {
+          "result": "число (int или float)",
+          "status": "строка (например, 'success' или 'error')"
+        }
+      },
+      "logic": "Создать aiohttp сервер, который обрабатывает GET запросы на маршрут /sum, извлекает параметры a и b, вычисляет их сумму и возвращает результат в формате JSON.",
+      "external": [
+        "aiohttp"
+      ]
+    }
+  ]
+}
