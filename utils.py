@@ -12,16 +12,26 @@ from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 load_dotenv()
 
-# Настройка логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler("project/system.log"),
-        logging.StreamHandler()
-    ]
+import logging
+import os
+
+# Определяем корень проекта и путь к лог-файлу
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+log_file = os.path.join(project_root, "system.log")
+
+# Создаем логгер
+logger = logging.getLogger("CodeCraftAgents")
+logger.setLevel(logging.INFO)
+
+# Создаем обработчик для записи в файл
+handler = logging.FileHandler(log_file)
+
+# Настраиваем формат логов с дополнительной информацией
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)s - %(funcName)s - %(message)s'
 )
-logger = logging.getLogger(__name__)
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 # Конфигурация
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")

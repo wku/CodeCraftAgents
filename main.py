@@ -111,38 +111,124 @@ def initialize_config_files():
 def save_code_safely(code, file_path):
     """Безопасное сохранение кода с проверкой типа данных."""
     try:
-        if isinstance(code, dict) and "data" in code:
-            if isinstance(code["data"], str):
-                logger.info (f"save_code_safely 1 isinstance code.keys(): {code.keys()}")
-                save_text(code["data"], file_path)
+        logger.info (f"save_code_safely вызвана с типом code: {type (code)}")
+
+        # Если code - словарь с ключом "data"
+        if isinstance (code, dict) and "data" in code:
+            logger.info (f"save_code_safely: code является словарем с ключом 'data', тип data: {type (code['data'])}")
+
+            # Если code["data"] - строка, сохраняем напрямую
+            if isinstance (code["data"], str):
+                logger.info (f"save_code_safely 1 isinstance code.keys(): {code.keys ()}")
+                save_text (code["data"], file_path)
                 return True
-            elif isinstance(code["data"], dict):
+            # Если code["data"] - словарь
+            elif isinstance (code["data"], dict):
+                logger.info (f"save_code_safely: code['data'] является словарем с ключами: {code['data'].keys ()}")
+
                 # Обработка вложенной структуры, возвращаемой CodeGeneratorAgent
                 if "code" in code["data"]:
-                    save_text(code["data"]["code"], file_path)
+                    logger.info (f"save_code_safely: найден 'code' внутри code['data']")
+                    save_text (code["data"]["code"], file_path)
                     return True
                 # Проверка на наличие ошибки
                 elif "error" in code["data"]:
-                    logger.error(f"save_code_safely Обнаружена ошибка в данных: {code['data']['error']}")
-                return False
+                    logger.error (f"save_code_safely Обнаружена ошибка в данных: {code['data']['error']}")
+                    return False
+                else:
+                    logger.error (f"save_code_safely: В code['data'] нет ключа 'code' или 'error'")
+                    return False
             else:
-                logger.error(f"save_code_safely Ошибка сохранения кода: code['data'] не является строкой или словарем, тип: {type(code['data'])}")
+                logger.error (f"save_code_safely Ошибка сохранения кода: code['data'] не является строкой или словарем, тип: {type (code['data'])}")
                 return False
-        elif isinstance(code, str):
-            logger.info (f"save_code_safely 2 isinstance code.keys(): {code.keys ()}")
-            save_text(code, file_path)
-            return True
-        elif isinstance(code, dict) and "code" in code:
+
+        # Если code - это словарь с ключом "code" напрямую
+        elif isinstance (code, dict) and "code" in code:
             logger.info (f"save_code_safely 3 isinstance code.keys(): {code.keys ()}")
             # Прямая обработка, если код находится в ключе "code"
-            save_text(code["code"], file_path)
+            content = code["code"]
+
+            # Проверка типа содержимого code
+            if isinstance (content, str):
+                save_text (content, file_path)
+                return True
+            elif isinstance (content, dict) and "code" in content:
+                # Вложенная структура внутри "code"
+                save_text (content["code"], file_path)
+                return True
+            else:
+                # Преобразуем к строке, если не строка
+                logger.warning (f"save_code_safely: содержимое 'code' не является строкой, преобразуем к строке")
+                try:
+                    # Если значение 'code' это не строка, попробуем получить только содержимое кода
+                    # Ищем строку, которая выглядит как код Python
+                    if isinstance (content, dict) and any (k in content for k in ["code", "data"]):
+                        for key in ["code", "data"]:
+                            if key in content and isinstance (content[key], str):
+                                save_text (content[key], file_path)
+                                logger.info (f"save_code_safely: извлечен код из вложенной структуры по ключу {key}")
+                                return True
+
+                    # Если не нашли подходящий ключ, сохраняем как строку
+                    code_str = str (content)
+                    # Если значение выглядит как словарь в строке, попробуем распарсить его
+                    if code_str.startswith ("{") and code_str.endswith ("}"):
+                        try:
+                            code_dict = eval (code_str)  # Осторожно с eval!
+                            if isinstance (code_dict, dict) and "code" in code_dict:
+                                save_text (code_dict["code"], file_path)
+                                logger.info (f"save_code_safely: извлечен код из строкового представления словаря")
+                                return True
+                        except:
+                            pass
+
+                    # Если не удалось распарсить, сохраняем как есть
+                    save_text (code_str, file_path)
+                    return True
+                except Exception as inner_e:
+                    logger.error (f"save_code_safely: ошибка при попытке обработать нестроковое значение 'code': {str (inner_e)}")
+                    return False
+
+        # Если code - строка, сохраняем напрямую
+        elif isinstance (code, str):
+            if code.startswith ("{") and ("code" in code or "data" in code):
+                logger.info (f"save_code_safely: code выглядит как строка с JSON, пробуем распарсить")
+                try:
+                    # Проверяем, может это строка с JSON, которую нужно распарсить
+                    import json
+                    code_json = json.loads (code)
+
+                    if isinstance (code_json, dict):
+                        if "code" in code_json:
+                            save_text (code_json["code"], file_path)
+                            logger.info (f"save_code_safely: извлечен код из JSON строки по ключу 'code'")
+                            return True
+                        elif "data" in code_json and isinstance (code_json["data"], str):
+                            save_text (code_json["data"], file_path)
+                            logger.info (f"save_code_safely: извлечен код из JSON строки по ключу 'data'")
+                            return True
+                except:
+                    # Если не получилось распарсить как JSON, сохраняем как обычную строку
+                    pass
+
+            logger.info (f"save_code_safely 2: сохранение строки напрямую")
+            save_text (code, file_path)
             return True
+
         else:
-            logger.error(f"save_code_safely Ошибка сохранения кода: code не является строкой или словарем с 'data' или 'code', тип: {type(code)}")
-            return False
+            logger.error (f"save_code_safely Ошибка сохранения кода: code не является строкой или словарем с 'data' или 'code', тип: {type (code)}")
+            # Последняя попытка - преобразовать к строке
+            try:
+                code_str = str (code)
+                logger.warning (f"save_code_safely: попытка сохранить код, преобразованный к строке")
+                save_text (code_str, file_path)
+                return True
+            except:
+                return False
     except Exception as e:
-        logger.error(f"save_code_safely Исключение при сохранении кода в {file_path}: {str(e)}")
+        logger.error (f"save_code_safely Исключение при сохранении кода в {file_path}: {str (e)}")
         return False
+
 
 def is_valid_result(result):
     """Проверка валидности результата агента."""

@@ -690,18 +690,18 @@ class TesterAgent(BaseAgent):
         
         # Формирование промпта для тестов
         prompt = f"""
-    Ты — Агент-тестировщик. Создай тесты для кода:
-    
-    {code_str[:1000]}{"..." if len(code_str) > 1000 else ""}
-    
-    План тестирования:
-    1. Тесты должны использовать pytest
-    2. Проверить основные функции и маршруты
-    3. Включить тесты на граничные случаи и обработку ошибок
-    4. Использовать моки для внешних зависимостей
-    
-    Верни {{"tests": "..."}} в JSON без обёрток.
-    """
+        Ты — Агент-тестировщик. Создай тесты для кода:
+        
+        {code_str[:1000]}{"..." if len(code_str) > 1000 else ""}
+        
+        План тестирования:
+        1. Тесты должны использовать pytest
+        2. Проверить основные функции и маршруты
+        3. Включить тесты на граничные случаи и обработку ошибок
+        4. Использовать моки для внешних зависимостей
+        
+        Верни {{"tests": "..."}} в JSON без обёрток.
+        """
         logger.info(f"Промпт для TesterAgent: {prompt}")
         
         try:
@@ -709,8 +709,21 @@ class TesterAgent(BaseAgent):
             result = call_openrouter(prompt)
             
             # Очистка и парсинг JSON
-            result = self._clean_json_response(result)
-            result_dict = json.loads(result)
+            cleaned_response = self._clean_json_response(result)
+            logger.info (f"TesterAgent.run - Очищенный ответ cleaned_response: {cleaned_response[:500]}...")
+
+
+            try:
+                result_dict = json.loads (cleaned_response)
+            except json.JSONDecodeError as e:
+                logger.error (f"JSONDecodeError в TesterAgent result_dict: {str (e)}")
+                logger.info (f"****************************************************************")
+                logger.error (f"Проблемный JSON cleaned_response: {cleaned_response}")
+                logger.info (f"****************************************************************")
+                logger.error (f"Проблемный JSON result: {result}")
+                # Временно выбрасываем исключение для отладки
+                #raise Exception (f"Сбой при парсинге JSON: {str (e)}")
+
             
             # Сохранение тестов
             save_text(result_dict["tests"], "project/test_app.py")

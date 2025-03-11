@@ -4,8 +4,8 @@ import re
 import os
 import ast
 from typing import Dict, Any, List, Optional, Union
-from utils import logger, load_json
-from utils import logger, load_json, save_json, load_yaml  # Добавьте load_yaml
+
+from me.PRIORITET.me_github.CodeCraftAgents.utils import logger, load_json, save_json, load_yaml  # Добавьте load_yaml
 
 
 class VerificationAgent:

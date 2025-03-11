@@ -9,13 +9,13 @@
         "total_characters": "int",
         "total_words": "int",
         "total_lines": "int",
-        "most_common_words": "list of tuples",
+        "most_common_words": "list",
         "average_word_length": "float",
         "longest_sentence": "str"
       },
       "logic": "Программа читает текстовый файл, подсчитывает общее количество символов, слов и строк, определяет 10 наиболее часто встречающихся слов, вычисляет среднюю длину слова и находит самое длинное предложение.",
       "external": [
-        "sys",
+        "argparse",
         "collections",
         "re"
       ]

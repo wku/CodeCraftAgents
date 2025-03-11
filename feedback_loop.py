@@ -67,6 +67,7 @@ class FeedbackLoop:
 
     def run_agent_with_feedback(self, agent_name: str, input_data: Any, task: str, state: Dict[str, Any]) -> Dict[str, Any]:
         """Запуск агента с обратной связью."""
+        result = None
         # Получаем конфигурацию для агента
         agent_config = self.get_agent_config(agent_name)
         iterations = 0

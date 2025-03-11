@@ -4,11 +4,11 @@
   "data": {
     "source": "docker",
     "data": {
-      "dockerfile": "FROM python:3.9\n\n# Устанавливаем зависимости\nRUN pip install Flask\n\n# Устанавливаем рабочую директорию\nWORKDIR /app\n\n# Копируем файл приложения в контейнер\nCOPY project/app.py .\n\n# Экспонируем порт для Flask\nEXPOSE 5000\n\n# Команда для запуска приложения\nCMD [\"python\", \"app.py\"]",
+      "dockerfile": "FROM python:3.9\n\n# Устанавливаем рабочую директорию\nWORKDIR /app\n\n# Копируем файл приложения в контейнер\nCOPY project/app.py .\n\n# Устанавливаем зависимости\nRUN pip install Flask\n\n# Экспонируем порт для Flask\nEXPOSE 5000\n\n# Команда для запуска приложения\nCMD [\"python\", \"app.py\"]",
       "compose": "version: '3.8'\nservices:\n  web:\n    build: .\n    ports:\n      - \"5000:5000\""
     },
     "confidence": 1.0,
-    "timestamp": 1741689271.5983195
+    "timestamp": 1741694165.8581283
   },
   "step": 5,
   "validator_consecutive_runs": 0,
@@ -40,13 +40,13 @@
               "total_characters": "int",
               "total_words": "int",
               "total_lines": "int",
-              "most_common_words": "list of tuples",
+              "most_common_words": "list",
               "average_word_length": "float",
               "longest_sentence": "str"
             },
             "logic": "Программа читает текстовый файл, подсчитывает общее количество символов, слов и строк, определяет 10 наиболее часто встречающихся слов, вычисляет среднюю длину слова и находит самое длинное предложение.",
             "external": [
-              "sys",
+              "argparse",
               "collections",
               "re"
             ]
@@ -54,7 +54,7 @@
         ]
       },
       "confidence": 1.0,
-      "timestamp": 1741689187.6151736
+      "timestamp": 1741694076.3903928
     },
     "validator": {
       "source": "validator",
@@ -62,7 +62,7 @@
         "status": "approved"
       },
       "confidence": 1.0,
-      "timestamp": 1741689189.409933
+      "timestamp": 1741694078.3423562
     },
     "consistency": {
       "source": "consistency",
@@ -70,17 +70,17 @@
         "status": "approved"
       },
       "confidence": 1.0,
-      "timestamp": 1741689191.2349417
+      "timestamp": 1741694080.1901479
     },
     "codegen": {
       "source": "codegen",
       "data": {
-        "code": "import sys\nimport collections\nimport re\n\ndef text_analyzer(input_file: str) -> dict:\n    # Валидация входных данных\n    if not isinstance(input_file, str) or not input_file.endswith('.txt'):\n        raise ValueError(\"Input file must be a string ending with '.txt'\")\n\n    try:\n        with open(input_file, 'r', encoding='utf-8') as file:\n            text = file.read()\n    except FileNotFoundError:\n        raise FileNotFoundError(f\"The file '{input_file}' was not found.\")\n    except Exception as e:\n        raise Exception(f\"An error occurred while reading the file: {e}\")\n\n    # Подсчет символов, слов и строк\n    total_characters = len(text)\n    total_lines = text.count('\\n') + 1 if text else 0\n    words = re.findall(r'\\b\\w+\\b', text)\n    total_words = len(words)\n\n    # Подсчет наиболее часто встречающихся слов\n    word_counts = collections.Counter(words)\n    most_common_words = word_counts.most_common(10)\n\n    # Вычисление средней длины слова\n    average_word_length = sum(len(word) for word in words) / total_words if total_words > 0 else 0.0\n\n    # Нахождение самого длинного предложения\n    sentences = re.split(r'[.!?]+', text)\n    longest_sentence = max(sentences, key=len).strip() if sentences else \"\"\n\n    return {\n        \"total_characters\": total_characters,\n        \"total_words\": total_words,\n        \"total_lines\": total_lines,\n        \"most_common_words\": most_common_words,\n        \"average_word_length\": average_word_length,\n        \"longest_sentence\": longest_sentence\n    }\n\n# Пример использования\nif __name__ == \"__main__\":\n    if len(sys.argv) != 2:\n        print(\"Usage: python script.py <input_file.txt>\")\n        sys.exit(1)\n\n    input_file = sys.argv[1]\n    try:\n        result = text_analyzer(input_file)\n        print(result)\n    except Exception as e:\n        print(f\"Error: {e}\")\n        sys.exit(1)",
+        "code": "import argparse\nimport collections\nimport re\n\ndef analyze_text(input_file):\n    try:\n        with open(input_file, 'r', encoding='utf-8') as file:\n            text = file.read()\n    except FileNotFoundError:\n        raise FileNotFoundError(f\"Файл '{input_file}' не найден.\")\n    except Exception as e:\n        raise Exception(f\"Ошибка при чтении файла: {e}\")\n\n    # Подсчет общего количества символов\n    total_characters = len(text)\n\n    # Подсчет общего количества строк\n    lines = text.splitlines()\n    total_lines = len(lines)\n\n    # Подсчет слов\n    words = re.findall(r'\\b\\w+\\b', text.lower())\n    total_words = len(words)\n\n    # Подсчет 10 наиболее часто встречающихся слов\n    most_common_words = collections.Counter(words).most_common(10)\n\n    # Вычисление средней длины слова\n    average_word_length = sum(len(word) for word in words) / total_words if total_words > 0 else 0\n\n    # Нахождение самого длинного предложения\n    sentences = re.split(r'[.!?]+', text)\n    longest_sentence = max(sentences, key=len).strip()\n\n    return {\n        \"total_characters\": total_characters,\n        \"total_words\": total_words,\n        \"total_lines\": total_lines,\n        \"most_common_words\": most_common_words,\n        \"average_word_length\": average_word_length,\n        \"longest_sentence\": longest_sentence\n    }\n\ndef main():\n    parser = argparse.ArgumentParser(description=\"Анализатор текста.\")\n    parser.add_argument(\"input_file\", type=str, help=\"Путь к текстовому файлу для анализа.\")\n    args = parser.parse_args()\n\n    # Валидация входных данных\n    if not args.input_file.endswith('.txt'):\n        raise ValueError(\"Файл должен иметь расширение .txt\")\n\n    try:\n        result = analyze_text(args.input_file)\n        print(result)\n    except Exception as e:\n        print(f\"Ошибка: {e}\")\n\nif __name__ == \"__main__\":\n    main()",
         "file_path": "project/app.py",
         "needs_execution": true
       },
       "confidence": 1.0,
-      "timestamp": 1741689199.1375582
+      "timestamp": 1741694086.885658
     },
     "extractor": {
       "source": "extractor",
@@ -88,16 +88,16 @@
         "file_path": "project/app.py"
       },
       "confidence": 1.0,
-      "timestamp": 1741689204.1252563
+      "timestamp": 1741694092.619627
     },
     "docker": {
       "source": "docker",
       "data": {
-        "dockerfile": "FROM python:3.9\n\n# Устанавливаем зависимости\nRUN pip install Flask\n\n# Устанавливаем рабочую директорию\nWORKDIR /app\n\n# Копируем файл приложения\nCOPY project/app.py .\n\n# Экспонируем порт\nEXPOSE 5000\n\n# Команда для запуска приложения\nCMD [\"python\", \"app.py\"]",
-        "compose": "version: '3.8'\n\nservices:\n  web:\n    build: .\n    ports:\n      - \"5000:5000\""
+        "dockerfile": "FROM python:3.9\n\n# Устанавливаем рабочую директорию\nWORKDIR /app\n\n# Копируем файл приложения в контейнер\nCOPY project/app.py .\n\n# Устанавливаем зависимости\nRUN pip install Flask\n\n# Экспонируем порт для Flask\nEXPOSE 5000\n\n# Команда для запуска приложения\nCMD [\"python\", \"app.py\"]",
+        "compose": "version: '3.8'\nservices:\n  web:\n    build: .\n    ports:\n      - \"5000:5000\""
       },
       "confidence": 1.0,
-      "timestamp": 1741689253.6377215
+      "timestamp": 1741694148.0816188
     }
   },
   "docker_retry_count": 0

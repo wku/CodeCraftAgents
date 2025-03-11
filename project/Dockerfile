@@ -1,13 +1,13 @@
 FROM python:3.9
 
-# Устанавливаем зависимости
-RUN pip install Flask
-
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
 # Копируем файл приложения в контейнер
 COPY project/app.py .
+
+# Устанавливаем зависимости
+RUN pip install Flask
 
 # Экспонируем порт для Flask
 EXPOSE 5000
