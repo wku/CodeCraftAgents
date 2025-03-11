@@ -1,22 +1,23 @@
 {
   "modules": [
     {
-      "name": "api_server",
+      "name": "text_analyzer",
       "input": {
-        "parameters": {
-          "a": "число (GET параметр)",
-          "b": "число (GET параметр)"
-        }
+        "input_file": "str"
       },
       "output": {
-        "response": {
-          "result": "число (сумма a и b)",
-          "status": "HTTP статус код"
-        }
+        "total_characters": "int",
+        "total_words": "int",
+        "total_lines": "int",
+        "most_common_words": "list of tuples",
+        "average_word_length": "float",
+        "longest_sentence": "str"
       },
-      "logic": "Создать aiohttp сервер, настроить маршрут /sum, обработать GET запросы, извлечь параметры a и b, вычислить их сумму и вернуть результат в формате JSON.",
+      "logic": "Программа читает текстовый файл, подсчитывает общее количество символов, слов и строк, определяет 10 наиболее часто встречающихся слов, вычисляет среднюю длину слова и находит самое длинное предложение.",
       "external": [
-        "aiohttp"
+        "sys",
+        "collections",
+        "re"
       ]
     }
   ]

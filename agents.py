@@ -7,6 +7,10 @@ from typing import Dict, Any, Optional, List, Union
 from utils import call_openrouter, save_json, save_text, load_json, add_to_qdrant, get_from_qdrant, logger
 from verification import VerificationAgent
 
+from utils import logger, call_openrouter, save_json, save_text, load_json, add_to_qdrant, get_from_qdrant
+from request_validation_agent import RequestValidationAgent
+
+
 class BaseAgent:
     def __init__(self):
         self.verifier = VerificationAgent()
@@ -22,7 +26,17 @@ class BaseAgent:
         text = re.sub(r'}(\s*){', '},\\1{', text)
         return text
 
-    def _estimate_confidence(self, result: Any, issues: list = []) -> float:
+    def _estimate_confidence(self, result: Any, issues: list = None) -> float:
+        """Оценка уверенности агента в своём результате."""
+        confidence = 1.0
+        if not result:
+            confidence -= 0.5
+        if issues:  # Проверка, что issues не None и не пустой список
+            confidence -= 0.1 * len (issues)
+        return max (0.0, min (1.0, confidence))
+
+
+    def _estimate_confidence_old(self, result: Any, issues: list = []) -> float:
         """Оценка уверенности агента в своём результате."""
         confidence = 1.0
         if not result:
@@ -30,18 +44,31 @@ class BaseAgent:
         if issues:
             confidence -= 0.1 * len(issues)
         return max(0.0, min(1.0, confidence))
-        
+
     def _format_result(self, data: Any, confidence: float = 1.0, source: str = None) -> Dict[str, Any]:
         """Форматирование результата с метаданными."""
         if source is None:
             source = self.__class__.__name__
-            
-        return {
+
+        logger.info (f"BaseAgent._format_result: Входные данные - data типа {type (data)}, confidence={confidence}, source={source}")
+
+        # Проверяем, есть ли проблемные case-ы
+        if isinstance (data, list):
+            logger.warning (f"BaseAgent._format_result: data является списком, а не строкой! Преобразуем в строку.")
+            data = "\n".join (str (item) for item in data) if data else ""
+
+        result = {
             "source": source,
             "data": data,
             "confidence": confidence,
-            "timestamp": import_time()
+            "timestamp": import_time ()
         }
+
+        logger.info (f"BaseAgent._format_result: Возвращаемый результат типа {type (result)}, data внутри типа {type (result['data'])}")
+        return result
+
+
+
         
     def _validate_python_syntax(self, code: str) -> List[str]:
         """Проверка синтаксиса Python-кода."""
@@ -68,17 +95,18 @@ class DecomposerAgent(BaseAgent):
         
         # Формирование промпта с учетом контекста
         prompt = f"""
-Ты — Агент-декомпозер. Твоя задача — разобрать задачу: "{task}". Контекст: {context_str}. Тебе нужно:
-1. Выделить ключевые элементы: модули, интерфейсы, логику, зависимости.
-2. Сформировать план в JSON: {{"modules": [{{"name": "", "input": {{}}, "output": {{}}, "logic": "", "external": []}}]}}.
-3. Верни результат в формате JSON без обёрток.
+        Ты — Агент-декомпозер. Твоя задача — разобрать задачу: "{task}". Контекст: {context_str}. Тебе нужно:
+        1. Выделить ключевые элементы: модули, интерфейсы, логику, зависимости.
+        2. Сформировать план в JSON: {{"modules": [{{"name": "строка с именем модуля", "input": {{"имя_параметра": "тип"}}, "output": {{"имя_результата": "тип"}}, "logic": "строка с описанием логики", "external": ["список зависимостей"]}}]}}. Убедись, что поле "logic" — это строка, а не список или другой тип.
+        3. Весь текст отдавай на русском языке, локализация северная европа.
+        4. Верни результат в формате JSON без обёрток.
 
-Для API-сервера обязательно указать:
-- Маршруты (routes)
-- Параметры запросов
-- Форматы ответов
-- Внешние зависимости (например, Flask)
-"""
+        Для API-сервера обязательно указать:
+        - Маршруты (routes)
+        - Параметры запросов
+        - Форматы ответов
+        - Внешние зависимости (например, Flask)
+        """
         logger.info(f"Промпт для DecomposerAgent: {prompt}")
         
         try:
@@ -88,7 +116,20 @@ class DecomposerAgent(BaseAgent):
             # Очистка и парсинг JSON
             result = self._clean_json_response(result)
             plan = json.loads(result)
-            
+
+            # Постобработка: исправляем поле logic, если оно не строка
+            if "modules" in plan:
+                for module in plan["modules"]:
+                    if "logic" in module and not isinstance (module["logic"], str):
+                        logger.info (f"Постобработка: исправляем поле logic, если оно не строка: 1")
+                        if isinstance (module["logic"], list):
+                            logger.info (f"Постобработка: исправляем поле logic, если оно не строка: 2")
+                            module["logic"] = " ".join (str (item) for item in module["logic"])
+                        else:
+                            logger.info (f"Постобработка: исправляем поле logic, если оно не строка: 3")
+                            module["logic"] = str (module["logic"])
+
+
             # Сохранение плана для дальнейшего использования
             save_json(plan, "project/plan.json")
             
@@ -143,18 +184,18 @@ class ValidatorAgent(BaseAgent):
         # Формирование промпта для валидации
         plan_str = json.dumps(plan) if isinstance(plan, dict) else str(plan)
         prompt = f"""
-Ты — Агент-проверяющий. Проверь план: {plan_str}. Тебе нужно:
-1. Проверить входные/выходные данные, логику, зависимости.
-2. Верни {{"status": "approved"}} или {{"status": "rejected", "comments": []}} в JSON без обёрток.
-
-Критерии проверки:
-- Все поля заполнены и содержат осмысленные значения
-- Входные и выходные данные соответствуют логике
-- Логика соответствует назначению модуля
-- Указаны все необходимые внешние зависимости
-
-Если какой-то из критериев не выполнен, укажи это в комментариях.
-"""
+        Ты — Агент-проверяющий. Проверь план: {plan_str}. Тебе нужно:
+        1. Проверить входные/выходные данные, логику, зависимости.
+        2. Верни {{"status": "approved"}} или {{"status": "rejected", "comments": []}} в JSON без обёрток.
+        
+        Критерии проверки:
+        - Все поля заполнены и содержат осмысленные значения
+        - Входные и выходные данные соответствуют логике
+        - Логика соответствует назначению модуля
+        - Указаны все необходимые внешние зависимости
+        
+        Если какой-то из критериев не выполнен, укажи это в комментариях.
+        """
         logger.info(f"Промпт для ValidatorAgent: {prompt}")
         
         try:
@@ -221,24 +262,24 @@ class ConsistencyAgent(BaseAgent):
             logger.error(f"Непредвиденная ошибка в ConsistencyAgent: {str(e)}")
             return self._format_result({"error": str(e)}, 0.0, "consistency")
 
-class CodeGeneratorAgent(BaseAgent):
+class CodeGeneratorAgent_old(BaseAgent):
     def run(self, plan: Any) -> Dict[str, Any]:
         """Генерация Python-кода по плану."""
         # Формирование промпта для генерации кода
         plan_str = json.dumps(plan) if isinstance(plan, dict) else str(plan)
         prompt = f"""
-Ты — Агент-генератор кода. Напиши Python-код для плана: {plan_str}. Тебе нужно:
-1. Реализовать модули с учётом входных/выходных данных и логики.
-2. Включить все необходимые импорты и внешние зависимости.
-3. Обеспечить обработку ошибок и валидацию входных данных.
-4. Верни код как текст без обёрток.
-
-Требования к коду:
-- Код должен быть хорошо структурирован 
-- Включить обработку исключений
-- Реализовать валидацию входных данных
-- Код должен быть готов к запуску
-"""
+        Ты — Агент-генератор кода. Напиши Python-код для плана: {plan_str}. Тебе нужно:
+        1. Реализовать модули с учётом входных/выходных данных и логики.
+        2. Включить все необходимые импорты и внешние зависимости.
+        3. Обеспечить обработку ошибок и валидацию входных данных.
+        4. Верни код как текст без обёрток.
+        
+        Требования к коду:
+        - Код должен быть хорошо структурирован 
+        - Включить обработку исключений
+        - Реализовать валидацию входных данных
+        - Код должен быть готов к запуску
+        """
         logger.info(f"Промпт для CodeGeneratorAgent: {prompt}")
         
         try:
@@ -254,15 +295,129 @@ class CodeGeneratorAgent(BaseAgent):
             
             # Проверка синтаксиса
             syntax_issues = self._validate_python_syntax(code)
-            
-            # Верификация кода
+
+            # Логирование перед верификацией
+            logger.info (f"CodeGeneratorAgent: Код для верификации, тип: {type (code)}, размер: {len (code)}")
+            logger.info (f"CodeGeneratorAgent: Синтаксические проблемы, тип: {type (syntax_issues)}, кол-во: {len (syntax_issues)}")
+
+
+            # Верификация кода todo
             verification = self.verifier.verify("codegen", code, "", {"decomposer": plan})
-            confidence = verification["confidence"] if verification["status"] == "passed" else self._estimate_confidence(code, verification["issues"] + syntax_issues)
-            
-            return self._format_result(code, confidence, "codegen")
+
+            logger.info(f"CodeGeneratorAgent: Результат верификации, тип: {type(verification)}, статус: {verification.get('status', 'unknown')}")
+
+
+            # Правильно объединяем списки issues todo ?
+            issues = verification.get ("issues", [])
+            logger.info(f"CodeGeneratorAgent: Issues из верификации, тип: {type(issues)}, кол-во: {len(issues)}")
+
+
+            if syntax_issues:
+                issues.extend (syntax_issues)
+                logger.info(f"CodeGeneratorAgent: Объединенные issues, тип: {type(issues)}, кол-во: {len(issues)}")
+
+            # Логирование перед вычислением confidence
+            if verification.get ("status") == "passed":
+                confidence = verification["confidence"]
+                logger.info (f"CodeGeneratorAgent: Confidence напрямую из верификации: {confidence}")
+            else:
+                logger.info (f"CodeGeneratorAgent: Вызов _estimate_confidence с code типа {type (code)} и issues типа {type (issues)}")
+                confidence = self._estimate_confidence (code, issues)
+                logger.info (f"CodeGeneratorAgent: Рассчитанный confidence: {confidence}")
+
+
+            # Логирование перед форматированием результата
+            logger.info (f"CodeGeneratorAgent: Вызов _format_result с code типа {type (code)}, confidence={confidence}")
+            result = self._format_result (code, confidence, "codegen")
+            logger.info (f"CodeGeneratorAgent: Результат _format_result, тип: {type (result)}")
+
+            return result
+
         except Exception as e:
             logger.error(f"Ошибка в CodeGeneratorAgent: {str(e)}")
             return self._format_result({"error": str(e)}, 0.0, "codegen")
+
+
+class CodeGeneratorAgent (BaseAgent):
+    def run(self, plan: Any) -> Dict[str, Any]:
+        """Генерация Python-кода по плану."""
+        # Формирование промпта для генерации кода
+        plan_str = json.dumps (plan) if isinstance (plan, dict) else str (plan)
+        prompt = f"""
+        Ты — Агент-генератор кода. Напиши Python-код для плана: {plan_str}. Тебе нужно:
+        1. Реализовать модули с учётом входных/выходных данных и логики.
+        2. Включить все необходимые импорты и внешние зависимости.
+        3. Обеспечить обработку ошибок и валидацию входных данных.
+        4. Верни код как текст без обёрток.
+
+        Требования к коду:
+        - Код должен быть хорошо структурирован 
+        - Включить обработку исключений
+        - Реализовать валидацию входных данных
+        - Код должен быть готов к запуску
+        - Для подсчета 10 наиболее часто встречающихся слов использовать collections.Counter, а не defaultdict
+        """
+        logger.info (f"Промпт для CodeGeneratorAgent: {prompt}")
+
+        try:
+            # Вызов LLM
+            code = call_openrouter (prompt)
+
+            # Очистка кода от маркеров
+            code = re.sub (r'```python\s*', '', code)
+            code = re.sub (r'```\s*$', '', code).strip ()
+
+            # Сохранение кода
+            save_text (code, "project/app.py")
+
+            # Проверка синтаксиса
+            syntax_issues = self._validate_python_syntax (code)
+
+            # Логирование перед верификацией
+            logger.info (f"CodeGeneratorAgent: Код для верификации, тип: {type (code)}, размер: {len (code)}")
+            logger.info (f"CodeGeneratorAgent: Синтаксические проблемы, тип: {type (syntax_issues)}, кол-во: {len (syntax_issues)}")
+
+            # Верификация кода
+            verification = self.verifier.verify ("codegen", code, "", {"decomposer": plan})
+
+            logger.info (f"CodeGeneratorAgent: Результат верификации, тип: {type (verification)}, статус: {verification.get ('status', 'unknown')}")
+
+            # Правильно объединяем списки issues
+            issues = verification.get ("issues", [])
+            logger.info (f"CodeGeneratorAgent: Issues из верификации, тип: {type (issues)}, кол-во: {len (issues)}")
+
+            if syntax_issues:
+                issues.extend (syntax_issues)
+                logger.info (f"CodeGeneratorAgent: Объединенные issues, тип: {type (issues)}, кол-во: {len (issues)}")
+
+            # Логирование перед вычислением confidence
+            if verification.get ("status") == "passed":
+                confidence = verification["confidence"]
+                logger.info (f"CodeGeneratorAgent: Confidence напрямую из верификации: {confidence}")
+            else:
+                logger.info (f"CodeGeneratorAgent: Вызов _estimate_confidence с code типа {type (code)} и issues типа {type (issues)}")
+                confidence = self._estimate_confidence (code, issues)
+                logger.info (f"CodeGeneratorAgent: Рассчитанный confidence: {confidence}")
+
+            # Форматируем результат с явным указанием необходимости выполнения
+            result_data = {
+                "code": code,
+                "file_path": "project/app.py",
+                "needs_execution": True  # Указываем, что код нужно выполнить
+            }
+            logger.info (f"CodeGeneratorAgent: Вызов _format_result с result_data типа {type (result_data)}, confidence={confidence}")
+            result = self._format_result (result_data, confidence, "codegen")
+            logger.info (f"CodeGeneratorAgent: Результат _format_result, тип: {type (result)}")
+
+            return result
+
+        except Exception as e:
+            logger.error (f"Ошибка в CodeGeneratorAgent: {str (e)}")
+            return self._format_result ({"error": str (e)}, 0.0, "codegen")
+
+
+
+
 
 class CodeExtractorAgent(BaseAgent):
     def run(self, code: Any) -> Dict[str, Any]:
@@ -278,16 +433,16 @@ class CodeExtractorAgent(BaseAgent):
             
         # Формирование промпта для извлечения
         prompt = f"""
-Ты — Агент-извлекатель кода. Сохрани код:
-
-{code_str[:1000]}{"..." if len(code_str) > 1000 else ""}
-
-Тебе нужно:
-1. Определить имя файла (например, app.py, main.py, server.py).
-2. Верни {{"file_path": "project/app.py"}} в JSON без обёрток.
-
-Для API-сервера обычно используется имя файла app.py или server.py.
-"""
+        Ты — Агент-извлекатель кода. Сохрани код:
+        
+        {code_str[:1000]}{"..." if len(code_str) > 1000 else ""}
+        
+        Тебе нужно:
+        1. Определить имя файла (например, app.py, main.py, server.py).
+        2. Верни {{"file_path": "project/app.py"}} в JSON без обёрток.
+        
+        Для API-сервера обычно используется имя файла app.py или server.py.
+        """
         logger.info(f"Промпт для CodeExtractorAgent: {prompt}")
         
         try:
@@ -321,6 +476,9 @@ class CodeExtractorAgent(BaseAgent):
         except Exception as e:
             logger.error(f"Непредвиденная ошибка в CodeExtractorAgent: {str(e)}")
             return self._format_result({"error": str(e)}, 0.0, "extractor")
+
+
+
 
 class DockerRunnerAgent(BaseAgent):
     def run(self, file_path: str, external: list) -> Dict[str, Any]:
@@ -442,17 +600,17 @@ class CoordinatorAgent(BaseAgent):
         
         # Формирование промпта для координатора
         prompt = f"""
-Ты — Агент-координатор. Определи следующего агента для данных: {data_str[:500]}{"..." if len(data_str) > 500 else ""} от {source}. 
-
-Порядок: decomposer → validator → consistency → codegen → extractor → docker → tester → docs. 
-
-Обрати внимание на:
-- Статус выполнения предыдущего агента
-- Наличие ошибок в данных
-- Полноту и корректность результатов
-
-Верни только имя следующего агента без дополнительного текста.
-"""
+        Ты — Агент-координатор. Определи следующего агента для данных: {data_str[:500]}{"..." if len(data_str) > 500 else ""} от {source}. 
+        
+        Порядок: decomposer → validator → consistency → codegen → extractor → docker → tester → docs. 
+        
+        Обрати внимание на:
+        - Статус выполнения предыдущего агента
+        - Наличие ошибок в данных
+        - Полноту и корректность результатов
+        
+        Верни только имя следующего агента без дополнительного текста.
+        """
         logger.info(f"Промпт для CoordinatorAgent: {prompt}")
         
         # Вызов LLM
@@ -509,8 +667,9 @@ class MonitorAgent(BaseAgent):
             return self._format_result({"command": "none", "error": str(e)}, 0.5, "monitor")
 
 class TesterAgent(BaseAgent):
-    def run(self, plan: Any, code: Any = None) -> Dict[str, Any]:
+    def run_(self, plan: Any, code: Any = None) -> Dict[str, Any]:
         """Создание тестов для кода."""
+        result = None  # Инициализация переменной в начале
         # Загрузка плана и кода
         if code is None:
             code = load_json("project/plan.json") if os.path.exists("project/plan.json") else "No code available"
@@ -531,18 +690,18 @@ class TesterAgent(BaseAgent):
         
         # Формирование промпта для тестов
         prompt = f"""
-Ты — Агент-тестировщик. Создай тесты для кода:
-
-{code_str[:1000]}{"..." if len(code_str) > 1000 else ""}
-
-План тестирования:
-1. Тесты должны использовать pytest
-2. Проверить основные функции и маршруты
-3. Включить тесты на граничные случаи и обработку ошибок
-4. Использовать моки для внешних зависимостей
-
-Верни {{"tests": "..."}} в JSON без обёрток.
-"""
+    Ты — Агент-тестировщик. Создай тесты для кода:
+    
+    {code_str[:1000]}{"..." if len(code_str) > 1000 else ""}
+    
+    План тестирования:
+    1. Тесты должны использовать pytest
+    2. Проверить основные функции и маршруты
+    3. Включить тесты на граничные случаи и обработку ошибок
+    4. Использовать моки для внешних зависимостей
+    
+    Верни {{"tests": "..."}} в JSON без обёрток.
+    """
         logger.info(f"Промпт для TesterAgent: {prompt}")
         
         try:
@@ -567,6 +726,103 @@ class TesterAgent(BaseAgent):
         except Exception as e:
             logger.error(f"Непредвиденная ошибка в TesterAgent: {str(e)}")
             return self._format_result({"error": str(e)}, 0.0, "tester")
+
+    def run(self, plan: Any, code: Any = None) -> Dict[str, Any]:
+        """Создание тестов для кода, учитывающих аргументы командной строки."""
+        # Загрузка плана и кода
+        if code is None:
+            code = load_json ("project/plan.json") if os.path.exists ("project/plan.json") else "No code available"
+
+        # Извлечение кода из различных форматов
+        code_str = None
+        if isinstance (code, dict) and "data" in code:
+            code_str = code["data"] if isinstance (code["data"], str) else str (code["data"])
+        elif isinstance (code, str):
+            code_str = code
+        else:
+            code_str = str (code)
+
+        # Если файл app.py существует, читаем его содержимое
+        if os.path.exists ("project/app.py"):
+            with open ("project/app.py", "r") as f:
+                code_str = f.read ()
+
+        # Анализ требуемых аргументов для тестов
+        from utils import call_openrouter
+
+        prompt_args = f"""
+    Проанализируй следующий Python-код и определи:
+
+    1. Какие аргументы командной строки требуются для запуска программы?
+    2. Какие типы входных файлов обрабатывает программа?
+    3. Какие тесты следует написать для проверки основной функциональности?
+
+    {code_str[:2000]}{"..." if len (code_str) > 2000 else ""}
+
+    Верни JSON следующего формата без дополнительных комментариев:
+    {{
+      "required_args": [
+        {{"name": "имя_аргумента", "value": "тестовое_значение"}}
+      ],
+      "input_file": {{"required": true/false, "content": "пример содержимого для тестового файла"}},
+      "test_cases": [
+        {{"description": "описание теста", "args": ["аргументы для этого теста"], "expected_outcome": "ожидаемый результат"}}
+      ]
+    }}
+    """
+
+        try:
+            # Анализ кода с помощью LLM
+            test_analysis_response = call_openrouter (prompt_args)
+            test_analysis_response = re.sub (r'```json|```', '', test_analysis_response).strip ()
+            test_analysis = json.loads (test_analysis_response)
+
+            # Формирование промпта для тестов
+            prompt = f"""
+    Ты — Агент-тестировщик. Создай тесты для кода:
+
+    {code_str[:1000]}{"..." if len (code_str) > 1000 else ""}
+
+    План тестирования (на основе анализа):
+    1. Тесты должны использовать pytest
+    2. Проверить обработку следующих аргументов командной строки: {json.dumps (test_analysis.get ("required_args", []))}
+    3. Создать тестовые файлы для ввода: {json.dumps (test_analysis.get ("input_file", {}))}
+    4. Проверить основные функции и результаты по следующим тест-кейсам: {json.dumps (test_analysis.get ("test_cases", []))}
+    5. Включить тесты на граничные случаи и обработку ошибок
+    6. Использовать моки при необходимости
+
+    Верни {{"tests": "..."}} в JSON без обёрток.
+    """
+            logger.info (f"Промпт для TesterAgent: {prompt}")
+
+            # Вызов LLM
+            result = call_openrouter (prompt)
+
+            # Очистка и парсинг JSON
+            result = self._clean_json_response (result)
+            result_dict = json.loads (result)
+
+            # Сохранение тестов
+            save_text (result_dict["tests"], "project/test_app.py")
+
+            # Верификация результата
+            verification = self.verifier.verify ("tester", result_dict, "", {"codegen": code_str})
+            confidence = verification["confidence"] if verification[
+                                                           "status"] == "passed" else self._estimate_confidence (
+                result_dict, verification["issues"])
+
+            return self._format_result (result_dict, confidence, "tester")
+        except json.JSONDecodeError as e:
+            logger.error (f"Ошибка JSON в TesterAgent: {result}, {str (e)}")
+            return self._format_result ({"error": "Invalid JSON", "raw": result}, 0.0, "tester")
+        except Exception as e:
+            logger.error (f"Непредвиденная ошибка в TesterAgent: {str (e)}")
+            return self._format_result ({"error": str (e)}, 0.0, "tester")
+
+
+
+
+
 
 class DocumentationAgent(BaseAgent):
     def run(self, plan: Any, code: Any = None) -> Dict[str, Any]:
@@ -631,6 +887,7 @@ def initialize_agents():
     """Инициализация всех агентов системы."""
     try:
         agents = {
+            "request_validation": RequestValidationAgent (),
             "decomposer": DecomposerAgent(),
             "validator": ValidatorAgent(),
             "consistency": ConsistencyAgent(),

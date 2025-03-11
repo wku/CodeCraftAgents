@@ -24,6 +24,10 @@ class VerificationAgent:
 
     def verify(self, agent_name: str, result: Any, task: str, previous_results: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Проверка результата агента на соответствие правилам и задаче."""
+
+        logger.info (f"VerificationAgent.verify: Вызван для агента '{agent_name}', result типа {type (result)}")
+
+
         if previous_results is None:
             previous_results = {}
             
@@ -114,8 +118,16 @@ class VerificationAgent:
 
     def _verify_decomposer(self, data: Any, task: str, issues: List[str], confidence: float, rules: Dict[str, Any]) -> tuple:
         """Верификация результата DecomposerAgent."""
-        if not isinstance(data, dict) or "modules" not in data:
-            issues.append("Отсутствует ключ 'modules' или неверный формат")
+        if not isinstance (data, dict):
+            issues.append (f"Результат должен быть словарем, получен {type (data)}")
+            return confidence - 0.3, issues
+
+        if "error" in data:
+            issues.append (f"Агент вернул ошибку: {data['error']}")
+            return confidence - 0.5, issues
+
+        if "modules" not in data:
+            issues.append ("Отсутствует ключ 'modules'")
             return confidence - 0.3, issues
         
         for module in data["modules"]:
@@ -125,8 +137,20 @@ class VerificationAgent:
                     confidence -= 0.1
             
             # Проверка соответствия задаче
-            logic = module.get("logic", "").lower()
-            task_lower = task.lower()
+            logic_raw = module.get ("logic", "")
+            if isinstance (logic_raw, list):
+                logger.info (f"<verification> logic_raw: {logic_raw}")
+                logic = " ".join (str (item) for item in logic_raw)
+            elif isinstance (logic_raw, str):
+                logger.info (f"<verification> elif logic_raw: {logic_raw}")
+                logic = logic_raw
+            else:
+                logger.info (f"<verification> else logic_raw: {logic_raw}")
+                logic = str (logic_raw)
+            logic = logic.lower ()
+            task_lower = task.lower ()
+
+
             
             # Проверяем, содержит ли логика ключевые слова из задачи
             if not any(word in logic for word in task_lower.split() if len(word) > 3):
@@ -189,7 +213,7 @@ class VerificationAgent:
 
 
 
-    def _verify_codegen(self, data: Any, previous_results: Dict[str, Any], issues: List[str], confidence: float, rules: Dict[str, Any]) -> tuple:
+    def _verify_codegen_old(self, data: Any, previous_results: Dict[str, Any], issues: List[str], confidence: float, rules: Dict[str, Any]) -> tuple:
         """Верификация результата CodeGeneratorAgent."""
         if data is None:
             issues.append("Код пустой")
@@ -252,55 +276,89 @@ class VerificationAgent:
                     
         return confidence, issues
 
-    def _verify_codegen_old(self, data: Any, previous_results: Dict[str, Any], issues: List[str], confidence: float, rules: Dict[str, Any]) -> tuple:
+    def _verify_codegen(self, data: Any, previous_results: Dict[str, Any], issues: List[str], confidence: float, rules: Dict[str, Any]) -> tuple:
         """Верификация результата CodeGeneratorAgent."""
         if data is None:
-            issues.append("Код пустой")
+            issues.append ("Код пустой")
             return 0.0, issues
-                
-        if not isinstance(data, str):
-            issues.append(f"Код должен быть строкой, получен {type(data)}")
+
+        if not isinstance (data, str):
+            issues.append (f"Код должен быть строкой, получен {type (data)}")
             return confidence - 0.3, issues
-                
-        if not data.strip():
-            issues.append("Код пустой")
+
+        if not data.strip ():
+            issues.append ("Код пустой")
             confidence -= 0.5
-                
-        # Простая проверка синтаксиса
-        if "def " not in data and "class " not in data and "import " not in data:
-            issues.append("Код не содержит функций, классов или импортов")
-            confidence -= 0.2
-                
+
         # Проверка синтаксиса Python
         try:
-            ast.parse(data)
+            ast.parse (data)
         except SyntaxError as e:
-            issues.append(f"Синтаксическая ошибка в коде: {str(e)}")
+            issues.append (f"Синтаксическая ошибка в коде: {str (e)}")
             confidence -= 0.3
-                
-        # Проверка соответствия плану
-        decomposer_result = previous_results.get("decomposer", {})
-        if decomposer_result and isinstance(decomposer_result, dict) and "data" in decomposer_result:
+
+        # Проверка соответствия плану через ЛЛМ
+        decomposer_result = previous_results.get ("decomposer", {})
+        if decomposer_result and isinstance (decomposer_result, dict) and "data" in decomposer_result:
             decomposer_data = decomposer_result["data"]
             if decomposer_data and "modules" in decomposer_data:
-                modules = decomposer_data["modules"]
-                for module in modules:
-                    # Проверка зависимостей вместо имени
-                    external = module.get("external", [])
-                    for dep in external:
-                        import_pattern = fr"import\s+{re.escape(dep)}|from\s+{re.escape(dep)}\s+import"
-                        if not re.search(import_pattern, data, re.IGNORECASE):
-                            issues.append(f"Зависимость {dep} не импортирована в коде")
-                            confidence -= 0.1
-                    
-                    # Проверка реализации требуемой функциональности по наличию маршрутов
-                    routes = module.get("input", {}).get("routes", [])
-                    for route in routes:
-                        if route not in data:
-                            issues.append(f"Маршрут {route} из плана не реализован в коде")
-                            confidence -= 0.1
-                    
-        return confidence, issues
+                plan_str = json.dumps (decomposer_data, ensure_ascii=False)
+                code_snippet = data[:1500] + ("..." if len (data) > 1500 else "")
+
+                prompt = f"""
+                Ты — эксперт по верификации кода. Проверь, реализует ли код требования из плана.
+
+                План:
+                {plan_str}
+
+                Код:
+                {code_snippet}
+
+                Проверь:
+                1. Импортированы ли все необходимые зависимости (особенно {', '.join ([m.get ('external', []) for m in decomposer_data['modules'] if 'external' in m])})
+                2. Реализованы ли все требуемые классы и модули ({', '.join ([m.get ('name', '') for m in decomposer_data['modules']])})
+                3. Обрабатываются ли все указанные входные параметры
+                4. Выполняется ли указанная логика для каждого модуля
+                5. Возвращаются ли результаты в ожидаемом формате
+
+                Верни JSON: {{"status": "passed" или "failed", "confidence": число от 0 до 1, "issues": ["список конкретных проблем"]}}
+                """
+
+                try:
+                    from utils import call_openrouter
+                    result = call_openrouter (prompt)
+                    try:
+                        # Очистка от маркеров JSON
+                        result = re.sub (r'```json|```', '', result).strip ()
+                        verification = json.loads (result)
+
+                        if isinstance (verification, dict):
+                            if "status" in verification:
+                                if verification["status"] == "failed" and "issues" in verification:
+                                    issues.extend (verification["issues"])
+                                    # Значительно снижаем уверенность при обнаружении проблем
+                                    confidence -= 0.2 * len (verification["issues"])
+                                    # Если найдено много проблем, значительно снижаем уверенность
+                                    if len (verification["issues"]) >= 3:
+                                        confidence -= 0.3
+
+                                # Используем оценку уверенности от LLM, если она предоставлена
+                                if "confidence" in verification:
+                                    llm_confidence = float (verification["confidence"])
+                                    # Учитываем оценку LLM с весом 0.5
+                                    confidence = (confidence + llm_confidence) / 2
+                    except json.JSONDecodeError:
+                        logger.error (f"Ошибка JSON в результате проверки кода: {result}")
+                        issues.append ("Ошибка анализа результатов LLM-проверки")
+                        confidence -= 0.1
+                except Exception as e:
+                    logger.error (f"Ошибка при вызове ЛЛМ для проверки кода: {str (e)}")
+                    issues.append (f"Не удалось проверить соответствие кода плану: {str (e)}")
+                    confidence -= 0.1
+
+        return max (0.0, min (1.0, confidence)), issues
+
+
 
 
     def _verify_extractor(self, data: Any, issues: List[str], confidence: float, rules: Dict[str, Any]) -> tuple:

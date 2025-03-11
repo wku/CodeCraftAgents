@@ -5,7 +5,7 @@ import time
 import shutil
 from feedback_loop import FeedbackLoop
 from execution_env import ExecutionEnvironment
-from utils import logger, save_json, load_json, save_text
+from utils import logger, save_json, load_json, save_text, save_yaml
 import shutil
 import os
 
@@ -113,22 +113,35 @@ def save_code_safely(code, file_path):
     try:
         if isinstance(code, dict) and "data" in code:
             if isinstance(code["data"], str):
+                logger.info (f"save_code_safely 1 isinstance code.keys(): {code.keys()}")
                 save_text(code["data"], file_path)
                 return True
+            elif isinstance(code["data"], dict):
+                # Обработка вложенной структуры, возвращаемой CodeGeneratorAgent
+                if "code" in code["data"]:
+                    save_text(code["data"]["code"], file_path)
+                    return True
+                # Проверка на наличие ошибки
+                elif "error" in code["data"]:
+                    logger.error(f"save_code_safely Обнаружена ошибка в данных: {code['data']['error']}")
+                return False
             else:
-                logger.error(f"Ошибка сохранения кода: code['data'] не является строкой, тип: {type(code['data'])}")
-                # Попытка извлечь строку из сложного объекта
-                if isinstance(code["data"], dict) and "error" in code["data"]:
-                    logger.error(f"Обнаружена ошибка в данных: {code['data']['error']}")
+                logger.error(f"save_code_safely Ошибка сохранения кода: code['data'] не является строкой или словарем, тип: {type(code['data'])}")
                 return False
         elif isinstance(code, str):
+            logger.info (f"save_code_safely 2 isinstance code.keys(): {code.keys ()}")
             save_text(code, file_path)
             return True
+        elif isinstance(code, dict) and "code" in code:
+            logger.info (f"save_code_safely 3 isinstance code.keys(): {code.keys ()}")
+            # Прямая обработка, если код находится в ключе "code"
+            save_text(code["code"], file_path)
+            return True
         else:
-            logger.error(f"Ошибка сохранения кода: code не является строкой или словарем с 'data', тип: {type(code)}")
+            logger.error(f"save_code_safely Ошибка сохранения кода: code не является строкой или словарем с 'data' или 'code', тип: {type(code)}")
             return False
     except Exception as e:
-        logger.error(f"Исключение при сохранении кода в {file_path}: {str(e)}")
+        logger.error(f"save_code_safely Исключение при сохранении кода в {file_path}: {str(e)}")
         return False
 
 def is_valid_result(result):
@@ -262,11 +275,60 @@ def main():
     clear_dir("project")
 
     # Задаем задачу
-    task = "Создать API-сервер, роут /sum, на вход два гет параметра a и b, цифры, возвращает сумму a и b. Использовать aiohttp"
+    #task = "Создать API-сервер, роут /sum, на вход два гет параметра a и b, цифры, возвращает сумму a и b. Использовать aiohttp"
+    task = """
     
+    Создайте программу на Python, которая анализирует текстовые файлы и предоставляет статистические данные о содержимом Программа должна иметь следующую функциональность:
+    
+    1. Чтение текстового файла, путь к которому указывается как аргумент командной строки
+    2. Подсчет общего количества символов, слов и строк
+    3. Определение 10 наиболее часто встречающихся слов
+    4. Вычисление средней длины слова
+    5. Поиск самого длинного предложения
+
+
+    ### Требования к реализации
+    * Весь код должен быть в одном файле `text_analyzer.py`
+    * Реализовать парсинг аргументов командной строки
+
+    
+    ### Пример использования
+
+    python text_analyzer.py --input example.txt 
+
+
+    """
+
+    # Инициализация компонентов
+    feedback_loop = FeedbackLoop()
+    execution_env = ExecutionEnvironment()
+
+
     # Инициализация конфигурационных файлов
     initialize_config_files()
-    
+    # Проверка валидности входного запроса
+    request_validation_result = feedback_loop.run_agent_with_feedback (
+        "request_validation",
+        task,
+        task,
+        {"task": task}
+    )
+    # Проверка результата валидации
+    if (not isinstance (request_validation_result, dict) or
+            "data" not in request_validation_result or
+            not request_validation_result["data"].get ("is_valid", False)):
+
+        # Логирование причин отклонения
+        reasons = request_validation_result.get ("data", {}).get ("reasons", ["Неизвестная причина"])
+        logger.error ("Входной запрос не прошел валидацию:")
+        for reason in reasons:
+            logger.error (f"- {reason}")
+
+        print ("Входной запрос не может быть обработан. Пожалуйста, уточните задание.")
+        return
+
+
+
     # Инициализация состояния
     state = {
         "task": task,
@@ -275,15 +337,15 @@ def main():
         "step": 0,
         "validator_consecutive_runs": 0,
         "verification": None,
-        "previous_results": {},
-        "max_steps": 50,  # Предотвращение бесконечных циклов
+        "max_steps": 30,  # Предотвращение бесконечных циклов / было 50
+        "previous_results": {
+            "request_validation": request_validation_result
+        },
         "docker_retry_count": 0  # Счетчик попыток для docker
     }
     save_json(state, "project/state.json")
     
-    # Инициализация компонентов
-    feedback_loop = FeedbackLoop()
-    execution_env = ExecutionEnvironment()
+
 
     # Ожидаемая последовательность агентов
     expected_flow = [

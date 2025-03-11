@@ -55,6 +55,16 @@ class FeedbackLoop:
                 
         return base_config
 
+
+    def _estimate_confidence(self, result: Any, issues: list = None) -> float:
+        """Оценка уверенности агента в своём результате."""
+        confidence = 1.0
+        if not result:
+            confidence -= 0.5
+        if issues:  # Проверка, что issues не None и не пустой список
+            confidence -= 0.1 * len (issues)
+        return max (0.0, min (1.0, confidence))
+
     def run_agent_with_feedback(self, agent_name: str, input_data: Any, task: str, state: Dict[str, Any]) -> Dict[str, Any]:
         """Запуск агента с обратной связью."""
         # Получаем конфигурацию для агента
@@ -137,8 +147,18 @@ class FeedbackLoop:
                 }
 
             # Верификация результата
-            verification = self.verifier.verify(agent_name, result, task, self.previous_results)
-            confidence = verification["confidence"]
+            if agent_name == "codegen" and isinstance (result, dict) and "confidence" in result and "data" in result:
+                # Для codegen, если результат уже является словарем с уверенностью и данными,
+                # пропускаем верификацию, так как она уже была выполнена в методе run() агента
+                verification = {"status": "passed", "confidence": result["confidence"], "issues": []}
+                logger.info (f"Пропускаем повторную верификацию для агента {agent_name}, используем confidence={result['confidence']}")
+            else:
+                verification = self.verifier.verify (agent_name, result, task, self.previous_results)
+
+            confidence = verification["confidence"] if verification["status"] == "passed" else self._estimate_confidence (result, verification.get ("issues", []))
+
+
+
             issues = verification["issues"]
 
             # Сохранение результата

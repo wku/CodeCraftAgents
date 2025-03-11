@@ -18,6 +18,17 @@ feedback:
       confidence_threshold: 0.9
 
 verification_rules:
+  request_validation:
+    required_fields: [ is_valid ]
+    error_patterns:
+      - invalid request
+      - not feasible
+    success_criteria: "is_valid is true with high confidence"
+    priority: 0
+    valid_result:
+      is_valid: true
+      reasons: "optional array of explanations"
+
   decomposer:
     required_fields: [modules]
     module_fields: [name, input, output, logic, external]

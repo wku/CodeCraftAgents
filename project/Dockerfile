@@ -1,15 +1,12 @@
 FROM python:3.9
 
+# Устанавливаем зависимости
+RUN pip install Flask
+
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем файл с зависимостями (если есть requirements.txt)
-COPY requirements.txt .
-
-# Устанавливаем зависимости
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Копируем приложение
+# Копируем файл приложения в контейнер
 COPY project/app.py .
 
 # Экспонируем порт для Flask
