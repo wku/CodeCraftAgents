@@ -2,12 +2,14 @@
   "task": "\n\n    Создайте программу на Python, которая анализирует текстовые файлы и предоставляет статистические данные о содержимом Программа должна иметь следующую функциональность:\n\n    1. Чтение текстового файла, путь к которому указывается как аргумент командной строки\n    2. Подсчет общего количества символов, слов и строк\n    3. Определение 10 наиболее часто встречающихся слов\n    4. Вычисление средней длины слова\n    5. Поиск самого длинного предложения\n\n\n    ### Требования к реализации\n    * Весь код должен быть в одном файле `text_analyzer.py`\n    * Реализовать парсинг аргументов командной строки\n\n\n    ### Пример использования\n\n    python text_analyzer.py --input example.txt \n\n\n    ",
   "current_agent": "codegen",
   "data": {
-    "source": "consistency",
+    "source": "codegen",
     "data": {
-      "status": "approved"
+      "code": "import argparse\nimport collections\nimport re\nimport os\n\ndef validate_file(input_file):\n    \"\"\"Проверяет, существует ли файл и является ли он текстовым.\"\"\"\n    if not os.path.isfile(input_file):\n        raise FileNotFoundError(f\"Файл '{input_file}' не найден.\")\n    if not input_file.endswith('.txt'):\n        raise ValueError(\"Файл должен быть текстовым (.txt).\")\n\ndef text_analyzer(input_file):\n    \"\"\"Анализирует текстовый файл и возвращает статистику.\"\"\"\n    validate_file(input_file)\n\n    total_characters = 0\n    total_words = 0\n    total_lines = 0\n    word_counter = collections.Counter()\n    longest_sentence = \"\"\n    \n    with open(input_file, 'r', encoding='utf-8') as file:\n        for line in file:\n            total_lines += 1\n            total_characters += len(line)\n            sentences = re.split(r'[.!?]', line)\n            for sentence in sentences:\n                if sentence.strip():  # Проверка на пустую строку\n                    if len(sentence) > len(longest_sentence):\n                        longest_sentence = sentence.strip()\n                    words = re.findall(r'\\b\\w+\\b', sentence.lower())\n                    total_words += len(words)\n                    word_counter.update(words)\n\n    most_common_words = word_counter.most_common(10)\n    average_word_length = (total_characters / total_words) if total_words > 0 else 0\n\n    return {\n        \"total_characters\": total_characters,\n        \"total_words\": total_words,\n        \"total_lines\": total_lines,\n        \"most_common_words\": most_common_words,\n        \"average_word_length\": average_word_length,\n        \"longest_sentence\": longest_sentence\n    }\n\ndef main():\n    parser = argparse.ArgumentParser(description=\"Анализатор текстового файла.\")\n    parser.add_argument(\"input_file\", type=str, help=\"Путь к текстовому файлу для анализа.\")\n    \n    args = parser.parse_args()\n    \n    try:\n        results = text_analyzer(args.input_file)\n        print(\"Результаты анализа:\")\n        print(f\"Общее количество символов: {results['total_characters']}\")\n        print(f\"Общее количество слов: {results['total_words']}\")\n        print(f\"Общее количество строк: {results['total_lines']}\")\n        print(f\"10 наиболее часто встречающихся слов: {results['most_common_words']}\")\n        print(f\"Средняя длина слова: {results['average_word_length']:.2f}\")\n        print(f\"Самое длинное предложение: {results['longest_sentence']}\")\n    except Exception as e:\n        print(f\"Ошибка: {e}\")\n\nif __name__ == \"__main__\":\n    main()",
+      "file_path": "project/app.py",
+      "needs_execution": true
     },
     "confidence": 1.0,
-    "timestamp": 1741726850.056043
+    "timestamp": 1741728521.2983038
   },
   "step": 3,
   "validator_consecutive_runs": 0,
@@ -39,7 +41,7 @@
               "total_characters": "int",
               "total_words": "int",
               "total_lines": "int",
-              "most_common_words": "list",
+              "most_common_words": "list of tuples",
               "average_word_length": "float",
               "longest_sentence": "str"
             },
@@ -53,7 +55,7 @@
         ]
       },
       "confidence": 1.0,
-      "timestamp": 1741726846.2330065
+      "timestamp": 1741728407.546828
     },
     "validator": {
       "source": "validator",
@@ -61,7 +63,7 @@
         "status": "approved"
       },
       "confidence": 1.0,
-      "timestamp": 1741726848.1154287
+      "timestamp": 1741728409.3987527
     },
     "consistency": {
       "source": "consistency",
@@ -69,7 +71,7 @@
         "status": "approved"
       },
       "confidence": 1.0,
-      "timestamp": 1741726850.056043
+      "timestamp": 1741728411.2373657
     }
   },
   "docker_retry_count": 0

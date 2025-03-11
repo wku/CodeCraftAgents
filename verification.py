@@ -215,27 +215,35 @@ class VerificationAgent:
 
     def _verify_codegen(self, data: Any, previous_results: Dict[str, Any], issues: List[str], confidence: float, rules: Dict[str, Any]) -> tuple:
         """Верификация результата CodeGeneratorAgent."""
+        logger.error (f"<VerificationAgent._verify_codegen>")
         if data is None:
             issues.append ("Код пустой")
             return 0.0, issues
 
-        if not isinstance (data, str):
 
-            logger.error (f"!1!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-            logger.error (f" data: {data}")
-            logger.error (f" issues: {issues}")
-            logger.error (f"!1!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
-            issues.append (f"Код должен быть строкой, получен {type (data)}")
+        # Если результат — словарь, извлекаем код из поля 'code'
+        if isinstance (data, dict) and "code" in data:
+            logger.error (f"<VerificationAgent._verify_codegen>")
+            code = data["code"]
+            if not isinstance (code, str):
+                logger.error (f"<VerificationAgent._verify_codegen>")
+                issues.append (f"Поле 'code' должно быть строкой, получен {type (code)}")
+                return confidence - 0.3, issues
+        elif isinstance (data, str):
+            logger.error (f"<VerificationAgent._verify_codegen>")
+            code = data
+        else:
+            issues.append (f"Код должен быть строкой или словарем с полем 'code', получен {type (data)}")
             return confidence - 0.3, issues
 
-        if not data.strip ():
+
+        if not code.strip ():
             issues.append ("Код пустой")
             confidence -= 0.5
 
         # Проверка синтаксиса Python
         try:
-            ast.parse (data)
+            ast.parse (code)
         except SyntaxError as e:
             issues.append (f"Синтаксическая ошибка в коде: {str (e)}")
             confidence -= 0.3
@@ -245,8 +253,8 @@ class VerificationAgent:
         if decomposer_result and isinstance (decomposer_result, dict) and "data" in decomposer_result:
             decomposer_data = decomposer_result["data"]
             if decomposer_data and "modules" in decomposer_data:
-                plan_str = decomposer_data["modules"][0]["logic"] #json.dumps (decomposer_data, ensure_ascii=False)# = decomposer_data["modules"]["logic"]   wku errorrrrr
-                code_snippet = data #[:1500] + ("..." if len (data) > 1500 else "")
+                plan_str = decomposer_data["modules"][0]["logic"]
+                code_snippet = code
 
                 prompt = f"""
                 Ты — эксперт по верификации кода. Проверь, реализует ли код требования из плана.

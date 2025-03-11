@@ -9,7 +9,7 @@
         "total_characters": "int",
         "total_words": "int",
         "total_lines": "int",
-        "most_common_words": "list",
+        "most_common_words": "list of tuples",
         "average_word_length": "float",
         "longest_sentence": "str"
       },
