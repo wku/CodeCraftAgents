@@ -2,7 +2,7 @@ import json
 import re
 from typing import Dict, Any
 from utils import call_openrouter, save_text, logger
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 class CodeGeneratorAgent(BaseAgent):
     def run(self, plan: Any) -> Dict[str, Any]:
@@ -23,11 +23,25 @@ class CodeGeneratorAgent(BaseAgent):
         logger.info(f"Промпт для CodeGeneratorAgent: {prompt}")
         try:
             code = call_openrouter(prompt)
+
             code = re.sub(r'```python\s*', '', code)
             code = re.sub(r'```\s*$', '', code).strip()
             save_text(code, "project/app.py")
+            logger.info (f"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+            logger.info (f"<CodeGeneratorAgent.run> code: {code}")
+            logger.info (f"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+
             syntax_issues = self._validate_python_syntax(code)
+            logger.info (f"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+            logger.info (f"<CodeGeneratorAgent.run> syntax_issues: {syntax_issues}")
+            logger.info (f"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+
             verification = self.verifier.verify("codegen", code, "", {"decomposer": plan})
+            logger.info (f"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+            logger.info (f"<CodeGeneratorAgent.run> verification: {verification}")
+            logger.info (f"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
+
+
             issues = verification.get("issues", [])
             if syntax_issues:
                 issues.extend(syntax_issues)
@@ -35,5 +49,5 @@ class CodeGeneratorAgent(BaseAgent):
             result_data = {"code": code, "file_path": "project/app.py", "needs_execution": True}
             return self._format_result(result_data, confidence, "codegen")
         except Exception as e:
-            logger.error(f"Ошибка в CodeGeneratorAgent: {str(e)}")
+            logger.error(f"<CodeGeneratorAgent.run> Exception в CodeGeneratorAgent: {str(e)}")
             return self._format_result({"error": str(e)}, 0.0, "codegen")

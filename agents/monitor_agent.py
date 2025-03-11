@@ -1,7 +1,7 @@
 import json
 from typing import Dict, Any
 from utils import call_openrouter, logger
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 class MonitorAgent(BaseAgent):
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:

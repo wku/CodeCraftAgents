@@ -106,10 +106,10 @@ project/
 7. **DockerRunnerAgent**
    - Создаёт `Dockerfile` и `docker-compose.yml` для контейнеризации приложения.
 
-8. **KnowledgeExtractorAgent**
+8. **KnowledgeExtractorAgent**!!!!!
    - Извлекает знания из данных и добавляет их в базу знаний (через `add_to_qdrant`).
 
-9. **CoordinatorAgent**
+9. **CoordinatorAgent**!!!!!
    - Определяет следующего агента в цепочке обработки.
 
 10. **MonitorAgent**

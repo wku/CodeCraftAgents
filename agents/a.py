@@ -1,0 +1,3 @@
+decomposer_data = {'modules': [{'name': 'text_analyzer', 'input': {'input_file': 'str'}, 'output': {'total_characters': 'int', 'total_words': 'int', 'total_lines': 'int', 'most_common_words': 'list of tuples', 'average_word_length': 'float', 'longest_sentence': 'str'}, 'logic': 'Программа читает текстовый файл, подсчитывает общее количество символов, слов и строк, определяет 10 наиболее часто встречающихся слов, вычисляет среднюю длину слова и находит самое длинное предложение.', 'external': ['argparse', 'collections', 're']}]}
+
+print(decomposer_data["modules"][0]["logic"])

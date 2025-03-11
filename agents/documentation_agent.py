@@ -3,7 +3,7 @@ import os
 import re
 from typing import Dict, Any
 from utils import call_openrouter, save_text, logger
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 class DocumentationAgent(BaseAgent):
     def run(self, plan: Any, code: Any = None) -> Dict[str, Any]:

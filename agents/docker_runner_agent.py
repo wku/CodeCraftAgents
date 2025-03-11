@@ -2,7 +2,7 @@ import json
 import os
 from typing import Dict, Any
 from utils import call_openrouter, save_text, logger
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 class DockerRunnerAgent(BaseAgent):
     def run(self, file_path: str, external: list) -> Dict[str, Any]:

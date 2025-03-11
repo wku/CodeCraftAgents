@@ -5,7 +5,7 @@ import os
 import ast
 from typing import Dict, Any, List, Optional, Union
 
-from me.PRIORITET.me_github.CodeCraftAgents.utils import logger, load_json, save_json, load_yaml  # Добавьте load_yaml
+from utils import logger, load_json, save_json, load_yaml, call_openrouter
 
 
 class VerificationAgent:
@@ -25,7 +25,7 @@ class VerificationAgent:
     def verify(self, agent_name: str, result: Any, task: str, previous_results: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Проверка результата агента на соответствие правилам и задаче."""
 
-        logger.info (f"VerificationAgent.verify: Вызван для агента '{agent_name}', result типа {type (result)}")
+        logger.info (f"VerificationAgent.verify: Вызван для агента '{agent_name}', result типа {type (result)}, result: {result}")
 
 
         if previous_results is None:
@@ -51,7 +51,7 @@ class VerificationAgent:
         # Запись результата для отладки
         logger.debug(f"Результат агента {agent_name} для верификации: {data}")
 
-        # Проверка обязательных полей
+        # Проверка обязательных полей wku может не надо
         if rules.get("required_fields"):
             if not isinstance(data, dict):
                 issues.append(f"Результат должен быть словарем, получен {type(data)}")
@@ -75,6 +75,7 @@ class VerificationAgent:
             "docker": lambda d, t, p, r, c, i: self._verify_docker(d, i, c, r),
             "tester": lambda d, t, p, r, c, i: self._verify_tester(d, p, i, c, r),
             "docs": lambda d, t, p, r, c, i: self._verify_docs(d, p, i, c, r),
+
             "monitor": lambda d, t, p, r, c, i: self._verify_monitor(d, i, c, r),
             "coordinator": lambda d, t, p, r, c, i: self._verify_coordinator(d, i, c, r),
             "knowledge": lambda d, t, p, r, c, i: self._verify_knowledge(d, i, c, r)
@@ -212,70 +213,6 @@ class VerificationAgent:
 
 
 
-
-    def _verify_codegen_old(self, data: Any, previous_results: Dict[str, Any], issues: List[str], confidence: float, rules: Dict[str, Any]) -> tuple:
-        """Верификация результата CodeGeneratorAgent."""
-        if data is None:
-            issues.append("Код пустой")
-            return 0.0, issues
-            
-        if not isinstance(data, str):
-            issues.append(f"Код должен быть строкой, получен {type(data)}")
-            return confidence - 0.3, issues
-            
-        if not data.strip():
-            issues.append("Код пустой")
-            confidence -= 0.5
-            
-        # Проверка синтаксиса Python
-        try:
-            ast.parse(data)
-        except SyntaxError as e:
-            issues.append(f"Синтаксическая ошибка в коде: {str(e)}")
-            confidence -= 0.3
-            
-        # Проверка соответствия плану через ЛЛМ
-        decomposer_result = previous_results.get("decomposer", {})
-        if decomposer_result and isinstance(decomposer_result, dict) and "data" in decomposer_result:
-            decomposer_data = decomposer_result["data"]
-            if decomposer_data and "modules" in decomposer_data:
-                plan_str = json.dumps(decomposer_data, ensure_ascii=False)
-                code_snippet = data[:1500] + ("..." if len(data) > 1500 else "")
-                
-                prompt = f"""
-                Ты — эксперт по верификации кода. Проверь, реализует ли код требования из плана.
-                
-                План:
-                {plan_str}
-                
-                Код:
-                {code_snippet}
-                
-                Проверь только:
-                1. Импортированы ли все необходимые зависимости
-                2. Реализованы ли все маршруты (/sum и т.д.)
-                3. Обрабатываются ли параметры из плана
-                4. Выдаётся ли результат в нужном формате
-                
-                Верни только JSON: {{"status": "passed", "issues": []}} или {{"status": "failed", "issues": ["список проблем"]}}
-                """
-                
-                try:
-                    from utils import call_openrouter
-                    result = call_openrouter(prompt)
-                    try:
-                        verification = json.loads(result)
-                        if isinstance(verification, dict) and "status" in verification:
-                            if verification["status"] == "failed" and "issues" in verification:
-                                issues.extend(verification["issues"])
-                                confidence -= 0.1 * len(verification["issues"])
-                    except json.JSONDecodeError:
-                        logger.error(f"Ошибка JSON в результате проверки кода: {result}")
-                except Exception as e:
-                    logger.error(f"Ошибка при вызове ЛЛМ для проверки кода: {str(e)}")
-                    
-        return confidence, issues
-
     def _verify_codegen(self, data: Any, previous_results: Dict[str, Any], issues: List[str], confidence: float, rules: Dict[str, Any]) -> tuple:
         """Верификация результата CodeGeneratorAgent."""
         if data is None:
@@ -283,6 +220,12 @@ class VerificationAgent:
             return 0.0, issues
 
         if not isinstance (data, str):
+
+            logger.error (f"!1!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+            logger.error (f" data: {data}")
+            logger.error (f" issues: {issues}")
+            logger.error (f"!1!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+
             issues.append (f"Код должен быть строкой, получен {type (data)}")
             return confidence - 0.3, issues
 
@@ -302,8 +245,8 @@ class VerificationAgent:
         if decomposer_result and isinstance (decomposer_result, dict) and "data" in decomposer_result:
             decomposer_data = decomposer_result["data"]
             if decomposer_data and "modules" in decomposer_data:
-                plan_str = json.dumps (decomposer_data, ensure_ascii=False)
-                code_snippet = data[:1500] + ("..." if len (data) > 1500 else "")
+                plan_str = decomposer_data["modules"][0]["logic"] #json.dumps (decomposer_data, ensure_ascii=False)# = decomposer_data["modules"]["logic"]   wku errorrrrr
+                code_snippet = data #[:1500] + ("..." if len (data) > 1500 else "")
 
                 prompt = f"""
                 Ты — эксперт по верификации кода. Проверь, реализует ли код требования из плана.
@@ -315,8 +258,8 @@ class VerificationAgent:
                 {code_snippet}
 
                 Проверь:
-                1. Импортированы ли все необходимые зависимости (особенно {', '.join ([m.get ('external', []) for m in decomposer_data['modules'] if 'external' in m])})
-                2. Реализованы ли все требуемые классы и модули ({', '.join ([m.get ('name', '') for m in decomposer_data['modules']])})
+                1. Импортированы ли все необходимые зависимости 
+                2. Реализованы ли все требуемые классы и модули если они были нужны
                 3. Обрабатываются ли все указанные входные параметры
                 4. Выполняется ли указанная логика для каждого модуля
                 5. Возвращаются ли результаты в ожидаемом формате
@@ -325,7 +268,7 @@ class VerificationAgent:
                 """
 
                 try:
-                    from utils import call_openrouter
+
                     result = call_openrouter (prompt)
                     try:
                         # Очистка от маркеров JSON

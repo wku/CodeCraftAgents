@@ -1,7 +1,7 @@
 import json
 from typing import Dict, Any
 from utils import call_openrouter, save_json, logger
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 class ConsistencyAgent(BaseAgent):
     def run(self, plan: Any) -> Dict[str, Any]:

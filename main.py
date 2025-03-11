@@ -356,42 +356,9 @@ def clear_dir(project_dir):
     logger.info(f"Создана новая директория {project_dir}")
 
 
-def main():
-
-    clear_dir("project")
-
-    # Задаем задачу
-    #task = "Создать API-сервер, роут /sum, на вход два гет параметра a и b, цифры, возвращает сумму a и b. Использовать aiohttp"
-    task = """
-    
-    Создайте программу на Python, которая анализирует текстовые файлы и предоставляет статистические данные о содержимом Программа должна иметь следующую функциональность:
-    
-    1. Чтение текстового файла, путь к которому указывается как аргумент командной строки
-    2. Подсчет общего количества символов, слов и строк
-    3. Определение 10 наиболее часто встречающихся слов
-    4. Вычисление средней длины слова
-    5. Поиск самого длинного предложения
 
 
-    ### Требования к реализации
-    * Весь код должен быть в одном файле `text_analyzer.py`
-    * Реализовать парсинг аргументов командной строки
-
-    
-    ### Пример использования
-
-    python text_analyzer.py --input example.txt 
-
-
-    """
-
-    # Инициализация компонентов
-    feedback_loop = FeedbackLoop()
-    execution_env = ExecutionEnvironment()
-
-
-    # Инициализация конфигурационных файлов
-    initialize_config_files()
+def tackt_1(feedback_loop, task):
     # Проверка валидности входного запроса
     request_validation_result = feedback_loop.run_agent_with_feedback (
         "request_validation",
@@ -409,10 +376,29 @@ def main():
         logger.error ("Входной запрос не прошел валидацию:")
         for reason in reasons:
             logger.error (f"- {reason}")
+        return False, request_validation_result
 
+    else:
+        return True, request_validation_result
+
+
+
+
+def main(task):
+
+    clear_dir("project")
+
+     # Инициализация компонентов
+    feedback_loop = FeedbackLoop() # + all agents + verification.py
+    execution_env = ExecutionEnvironment() # работа с кодом
+
+    # Инициализация конфигурационных файлов
+    initialize_config_files()
+
+    result_tackt_1, request_validation_result = tackt_1 (feedback_loop, task)
+    if not result_tackt_1:
         print ("Входной запрос не может быть обработан. Пожалуйста, уточните задание.")
         return
-
 
 
     # Инициализация состояния
@@ -433,10 +419,11 @@ def main():
     
 
 
-    # Ожидаемая последовательность агентов
+
+
+    # Ожидаемая последовательность агентов ... todo
     expected_flow = [
-        "decomposer", "validator", "consistency", "codegen", 
-        "extractor", "docker", "tester", "docs"
+        "decomposer", "validator", "consistency", "codegen", "extractor", "docker", "tester", "docs"
     ]
     
     # Основной цикл выполнения
@@ -449,7 +436,7 @@ def main():
             logger.info("Все этапы завершены успешно!")
             break
             
-        # Проверка на превышение лимита попыток для docker
+        # Проверка на превышение лимита попыток для docker todo
         if current_agent == "docker" and state.get("docker_retry_count", 0) > 5:
             logger.warning("Превышен лимит попыток для Docker, переход к следующему этапу")
             state["current_agent"] = "tester"
@@ -567,7 +554,18 @@ def main():
                 state["task"],
                 state
             )
-            
+            #для дебага "decomposer", "validator", "consistency", "codegen", "extractor", "docker", "tester", "docs"
+            # if current_agent not in ["decomposer", "validator", "consistency"]:
+            #     logger.error (f" *******************************")
+            #     logger.error (f"current_agent: {current_agent}")
+            #     logger.error (f"result: {json.dumps(result, indent=4, ensure_ascii=False,sort_keys=True) }")
+            #     logger.error (f" *******************************")
+            #     logger.error (f" agent_input: {agent_input}")
+            #     logger.error (f" *******************************")
+            #     logger.error (f" state: {state}")
+            #
+            #     return
+
             # Проверка результата
             if not is_valid_result(result):
                 logger.error(f"Агент {current_agent} вернул невалидный результат")
@@ -663,4 +661,28 @@ def main():
         logger.warning(f"Превышено максимальное количество шагов ({state['max_steps']}), выполнение остановлено")
 
 if __name__ == "__main__":
-    main()
+    # Задаем задачу
+    # task = "Создать API-сервер, роут /sum, на вход два гет параметра a и b, цифры, возвращает сумму a и b. Использовать aiohttp"
+    task = """
+
+    Создайте программу на Python, которая анализирует текстовые файлы и предоставляет статистические данные о содержимом Программа должна иметь следующую функциональность:
+
+    1. Чтение текстового файла, путь к которому указывается как аргумент командной строки
+    2. Подсчет общего количества символов, слов и строк
+    3. Определение 10 наиболее часто встречающихся слов
+    4. Вычисление средней длины слова
+    5. Поиск самого длинного предложения
+
+
+    ### Требования к реализации
+    * Весь код должен быть в одном файле `text_analyzer.py`
+    * Реализовать парсинг аргументов командной строки
+
+
+    ### Пример использования
+
+    python text_analyzer.py --input example.txt 
+
+
+    """
+    main(task)

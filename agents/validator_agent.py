@@ -1,10 +1,11 @@
 import json
 from typing import Dict, Any
 from utils import call_openrouter, save_json, logger
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 class ValidatorAgent(BaseAgent):
     def run(self, plan: Any) -> Dict[str, Any]:
+        result = None
         plan_str = json.dumps(plan) if isinstance(plan, dict) else str(plan)
         prompt = f"""
         Ты — Агент-проверяющий. Проверь план: {plan_str}. Тебе нужно:

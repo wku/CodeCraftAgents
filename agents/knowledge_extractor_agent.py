@@ -1,7 +1,7 @@
 import json
 from typing import Dict, Any
 from utils import call_openrouter, add_to_qdrant, logger
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 class KnowledgeExtractorAgent(BaseAgent):
     def run(self, data: Any) -> Dict[str, Any]:

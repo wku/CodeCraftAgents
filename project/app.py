@@ -1,1 +1,57 @@
-{'code': 'import argparse\nimport collections\nimport re\n\ndef analyze_text(input_file):\n    try:\n        with open(input_file, \'r\', encoding=\'utf-8\') as file:\n            text = file.read()\n    except FileNotFoundError:\n        raise FileNotFoundError(f"Файл \'{input_file}\' не найден.")\n    except Exception as e:\n        raise Exception(f"Ошибка при чтении файла: {e}")\n\n    # Подсчет общего количества символов\n    total_characters = len(text)\n\n    # Подсчет общего количества строк\n    lines = text.splitlines()\n    total_lines = len(lines)\n\n    # Подсчет слов\n    words = re.findall(r\'\\b\\w+\\b\', text.lower())\n    total_words = len(words)\n\n    # Подсчет 10 наиболее часто встречающихся слов\n    most_common_words = collections.Counter(words).most_common(10)\n\n    # Вычисление средней длины слова\n    average_word_length = sum(len(word) for word in words) / total_words if total_words > 0 else 0\n\n    # Нахождение самого длинного предложения\n    sentences = re.split(r\'[.!?]+\', text)\n    longest_sentence = max(sentences, key=len).strip()\n\n    return {\n        "total_characters": total_characters,\n        "total_words": total_words,\n        "total_lines": total_lines,\n        "most_common_words": most_common_words,\n        "average_word_length": average_word_length,\n        "longest_sentence": longest_sentence\n    }\n\ndef main():\n    parser = argparse.ArgumentParser(description="Анализатор текста.")\n    parser.add_argument("input_file", type=str, help="Путь к текстовому файлу для анализа.")\n    args = parser.parse_args()\n\n    # Валидация входных данных\n    if not args.input_file.endswith(\'.txt\'):\n        raise ValueError("Файл должен иметь расширение .txt")\n\n    try:\n        result = analyze_text(args.input_file)\n        print(result)\n    except Exception as e:\n        print(f"Ошибка: {e}")\n\nif __name__ == "__main__":\n    main()', 'file_path': 'project/app.py', 'needs_execution': True}
+import argparse
+import collections
+import re
+
+def validate_file_path(file_path):
+    """Validate if the file path is a valid string."""
+    if not isinstance(file_path, str) or not file_path.strip():
+        raise ValueError("Invalid file path. It must be a non-empty string.")
+
+def read_file(file_path):
+    """Read the content of the file."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            return file.read()
+    except FileNotFoundError:
+        raise FileNotFoundError(f"The file '{file_path}' was not found.")
+    except IOError:
+        raise IOError(f"An error occurred while reading the file '{file_path}'.")
+
+def analyze_text(text):
+    """Analyze the text and return the required metrics."""
+    total_characters = len(text)
+    lines = text.splitlines()
+    total_lines = len(lines)
+    
+    words = re.findall(r'\b\w+\b', text.lower())
+    total_words = len(words)
+    
+    word_counter = collections.Counter(words)
+    most_common_words = word_counter.most_common(10)
+    
+    average_word_length = sum(len(word) for word in words) / total_words if total_words > 0 else 0
+    longest_sentence = max(re.split(r'[.!?]+', text), key=len, default="")
+    
+    return {
+        "total_characters": total_characters,
+        "total_words": total_words,
+        "total_lines": total_lines,
+        "most_common_words": most_common_words,
+        "average_word_length": average_word_length,
+        "longest_sentence": longest_sentence.strip()
+    }
+
+def main(input_file):
+    """Main function to analyze the text file."""
+    validate_file_path(input_file)
+    text = read_file(input_file)
+    analysis_result = analyze_text(text)
+    
+    print(analysis_result)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Analyze a text file.")
+    parser.add_argument("input_file", type=str, help="Path to the input text file.")
+    
+    args = parser.parse_args()
+    main(args.input_file)

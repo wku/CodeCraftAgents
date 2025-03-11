@@ -33,7 +33,7 @@ class BaseAgent:
         if source is None:
             source = self.__class__.__name__
 
-        logger.info(f"BaseAgent._format_result: Входные данные - data типа {type(data)}, confidence={confidence}, source={source}")
+        logger.info(f"BaseAgent._format_result: Входные данные - data типа {type(data)}, confidence={confidence}, source={source}, data: {data}")
 
         if isinstance(data, list):
             logger.warning(f"BaseAgent._format_result: data является списком, а не строкой! Преобразуем в строку.")
@@ -46,7 +46,7 @@ class BaseAgent:
             "timestamp": self._get_timestamp()
         }
 
-        logger.info(f"BaseAgent._format_result: Возвращаемый результат типа {type(result)}, data внутри типа {type(result['data'])}")
+        logger.info(f"BaseAgent._format_result: Возвращаемый результат типа {type(result)}, data внутри типа result: {result}")
         return result
 
     def _validate_python_syntax(self, code: str) -> List[str]:

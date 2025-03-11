@@ -1,7 +1,7 @@
 import json
 from typing import Dict, Any
 from utils import call_openrouter, save_json, logger, get_from_qdrant, add_to_qdrant
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
 
 class DecomposerAgent(BaseAgent):
     def run(self, task: str) -> Dict[str, Any]:

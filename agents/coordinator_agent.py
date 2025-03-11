@@ -1,6 +1,7 @@
 from typing import Dict, Any
 from utils import call_openrouter, logger
-from base_agent import BaseAgent
+from .base_agent import BaseAgent
+import json
 
 class CoordinatorAgent(BaseAgent):
     def run(self, source: str, data: Any) -> str:
