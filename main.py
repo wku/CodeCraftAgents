@@ -581,24 +581,73 @@ def main(task):
                     continue
             
             # Обработка результата в зависимости от текущего агента
+            # if current_agent == "codegen":
+            #     # Сохраняем код в файл
+            #     if not save_code_safely(result, "project/app.py"):
+            #         logger.error("Не удалось сохранить код в project/app.py")
+            #         # Повторяем генерацию кода
+            #         continue
+            #     else:
+            #         # Извлекаем строку с кодом из результата
+            #         code = result["data"]["code"] if isinstance(result, dict) and "data" in result and "code" in result["data"] else str(result)
+            #         # Проверяем код выполнением
+            #         execution_result = execution_env.execute_python_code(result if isinstance(result, str) else result.get("data", ""))
+            #         if execution_result["status"] != "success":
+            #             logger.warning(f"Код не прошёл проверку выполнения: {execution_result['logs']}")
+            #             state["data"] = {"error": "Code execution failed", "logs": execution_result['logs']}
+            #             continue
+
             if current_agent == "codegen":
+                if "consistency" in state["previous_results"]:
+                    agent_input = state["previous_results"]["decomposer"]
+                else:
+                    logger.error ("Отсутствуют результаты consistency для codegen")
+                    state["current_agent"] = "consistency"
+                    save_json (state, "project/state.json")
+                    continue
+
+                # Выполнение агента
+                result = feedback_loop.run_agent_with_feedback (
+                    current_agent,
+                    agent_input,
+                    state["task"],
+                    state
+                )
+
+                # Проверка результата
+                if not is_valid_result (result):
+                    logger.error (f"Агент {current_agent} вернул невалидный результат")
+                    continue
+
                 # Сохраняем код в файл
-                if not save_code_safely(result, "project/app.py"):
-                    logger.error("Не удалось сохранить код в project/app.py")
-                    # Повторяем генерацию кода
+                if not save_code_safely (result, "project/app.py"):
+                    logger.error ("Не удалось сохранить код в project/app.py")
                     continue
                 else:
+                    # Извлекаем строку с кодом из результата
+                    #v1 todo
+                    code = result["data"]["code"] if isinstance (result, dict) and "data" in result and "code" in result["data"] else str (result)
+
+                    # v2 todo
+                    # if isinstance (result, dict) and "data" in result and "code" in result["data"] and isinstance (result["data"]["code"], str):
+                    #     code = result["data"]["code"]
+                    # else:
+                    #     logger.error (f"Некорректный формат результата codegen: {result}")
+                    #     continue
+
                     # Проверяем код выполнением
-                    execution_result = execution_env.execute_python_code(result if isinstance(result, str) else result.get("data", ""))
+                    execution_result = execution_env.execute_python_code (code)
                     if execution_result["status"] != "success":
-                        logger.warning(f"Код не прошёл проверку выполнения: {execution_result['logs']}")
+                        logger.warning (f"Код не прошёл проверку выполнения: {execution_result['logs']}")
                         state["data"] = {"error": "Code execution failed", "logs": execution_result['logs']}
                         continue
+
             elif current_agent == "extractor":
                 # Проверка корректности экстракции
                 file_path = result.get("file_path") if isinstance(result, dict) else None
                 if file_path and not os.path.exists(file_path):
                     # Если файл не существует, пытаемся создать его
+                    execution_result = execution_env.execute_python_code (code)
                     code_data = state["previous_results"].get("codegen")
                     if code_data and save_code_safely(code_data, file_path):
                         logger.info(f"Создан файл {file_path} из результатов codegen")

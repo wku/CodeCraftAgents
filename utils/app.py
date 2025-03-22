@@ -4,12 +4,14 @@ import re
 import os
 
 def validate_file(input_file):
-    """Validate if the input file exists and is a file."""
+    """Проверяет, существует ли файл и является ли он текстовым."""
     if not os.path.isfile(input_file):
-        raise FileNotFoundError(f"The file '{input_file}' does not exist.")
+        raise FileNotFoundError(f"Файл '{input_file}' не найден.")
+    if not input_file.endswith('.txt'):
+        raise ValueError("Файл должен быть текстовым (.txt).")
 
-def analyze_text(input_file):
-    """Analyze the text file and return various statistics."""
+def text_analyzer(input_file):
+    """Анализирует текстовый файл и возвращает статистику."""
     validate_file(input_file)
 
     total_characters = 0
@@ -39,28 +41,22 @@ def analyze_text(input_file):
         "total_characters": total_characters,
         "total_words": total_words,
         "total_lines": total_lines,
-        "most_common_words": [word for word, _ in most_common_words],
+        "most_common_words": most_common_words,
         "average_word_length": average_word_length,
         "longest_sentence": longest_sentence
     }
 
 def main():
-    parser = argparse.ArgumentParser(description="Analyze a text file.")
-    parser.add_argument("input_file", type=str, help="Path to the input text file.")
+    parser = argparse.ArgumentParser(description="Анализатор текстового файла.")
+    parser.add_argument("input_file", type=str, help="Путь к текстовому файлу для анализа.")
     
     args = parser.parse_args()
     
     try:
-        results = analyze_text(args.input_file)
-        print("Analysis Results:")
-        print(f"Total Characters: {results['total_characters']}")
-        print(f"Total Words: {results['total_words']}")
-        print(f"Total Lines: {results['total_lines']}")
-        print(f"Most Common Words: {results['most_common_words']}")
-        print(f"Average Word Length: {results['average_word_length']:.2f}")
-        print(f"Longest Sentence: {results['longest_sentence']}")
+        result = text_analyzer(args.input_file)
+        print(result)
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"Ошибка: {e}")
 
 if __name__ == "__main__":
     main()
